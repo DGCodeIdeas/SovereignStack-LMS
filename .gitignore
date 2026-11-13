@@ -1,0 +1,25 @@
+### Symfony / PHP ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+### PHPStorm ###
+.idea/
+### VSCode ###
+.vscode/
+### OS ###
+.DS_Store
+Thumbs.db
+### Testing ###
+.phpunit.result.cache
+.phpunit.cache/
+coverage/
+### Composer ###
+composer.lock
+### Node (if frontend build is added later) ###
+node_modules/
+npm-debug.log
+yarn-error.log
