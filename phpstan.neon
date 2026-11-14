@@ -1,0 +1,19 @@
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+
+parameters:
+    level: 5
+    paths:
+        - src/
+        - tests/
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Call to internal method Doctrine\\DBAL\\Connection::getParams#'
+        - '#Call to internal method PHPUnit\\Framework\\TestCase::addToAssertionCount#'
+        - "#Offset 'platform' on array#"
+        - "#Parameter .* Doctrine\\\\DBAL\\\\DriverManager::getConnection#"
+        - '#Call to method PHPUnit\\Framework\\Assert::assertNotNull#'
+        - '#Result of method Doctrine\\DBAL\\Connection::beginTransaction#'
+        - '#Variable \$tx is never read#'
+        - '#Variable \$params is never read#'
+        - '#Variable \$engine is never read#'

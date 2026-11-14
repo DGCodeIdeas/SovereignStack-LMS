@@ -1,0 +1,28 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    SovereignStack\Lms\:
+        resource: '../src/'
+        exclude:
+            - '../src/Kernel.php'
+            - '../src/*/Domain/Entity/'
+            - '../src/*/Domain/ValueObject/'
+            - '../src/*/Domain/Exception/'
+            - '../src/*/Presentation/Controller/'
+
+    SovereignStack\Lms\Shared\Presentation\Controller\:
+        resource: '../src/Shared/Presentation/Controller/'
+        tags: ['controller.service_arguments']
+
+    SovereignStack\Lms\Shared\Domain\Clock\ClockInterface:
+        class: SovereignStack\Lms\Shared\Infrastructure\Clock\SystemClock
+
+    SovereignStack\Lms\Shared\Domain\Uuid\UuidGeneratorInterface:
+        class: SovereignStack\Lms\Shared\Infrastructure\Uuid\SymfonyUidUuidGenerator
+
+when@test:
+    services:
+        SovereignStack\Lms\Shared\Domain\Clock\ClockInterface:
+            class: SovereignStack\Lms\Shared\Infrastructure\Clock\SystemClock
