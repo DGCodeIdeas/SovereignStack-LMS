@@ -1,9 +1,3 @@
-controllers:
-    resource:
-        path: ../src/*/Presentation/Controller/
-        namespace: SovereignStack\Lms
-    type: attribute
-
 health:
     path: /health
     controller: SovereignStack\Lms\Shared\Presentation\Controller\HealthController::health
