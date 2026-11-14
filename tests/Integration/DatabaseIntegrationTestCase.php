@@ -43,12 +43,24 @@ abstract class DatabaseIntegrationTestCase extends TestCase
 
         fwrite(STDERR, "Connecting to: " . $databaseUrl . "\n");
         try {
-            $this->connection = DriverManager::getConnection(['url' => $databaseUrl, 'driver' => 'pdo_mysql', 'host' => '127.0.0.1', 'port' => 3306]);
+            // Parse the URL manually to avoid DBAL's URL parsing issues
+            $parts = parse_url($databaseUrl);
+            $params = [
+                'driver' => 'pdo_mysql',
+                'host' => $parts['host'] ?? '127.0.0.1',
+                'port' => $parts['port'] ?? 3306,
+                'user' => $parts['user'] ?? 'lms_test',
+                'password' => $parts['pass'] ?? 'lms_test',
+                'dbname' => ltrim($parts['path'] ?? '/lms_test', '/'),
+                'charset' => 'utf8mb4',
+            ];
+            fwrite(STDERR, "Parsed params: host=" . $params['host'] . " port=" . $params['port'] . " user=" . $params['user'] . " dbname=" . $params['dbname'] . "\n");
+            $this->connection = DriverManager::getConnection($params);
             $this->connection->executeQuery('SELECT 1');
         } catch (\Throwable $e) {
             fwrite(STDERR, "SKIP: Connection failed: " . $e->getMessage() . "\n");
             $this->markTestSkipped(
-                'Database connection failed for URL ' . $databaseUrl . ': ' . $e->getMessage(),
+                'Database connection failed: ' . $e->getMessage(),
             );
         }
     }
