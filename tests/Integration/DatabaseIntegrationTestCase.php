@@ -14,14 +14,18 @@ abstract class DatabaseIntegrationTestCase extends TestCase
 
     protected function setUp(): void
     {
-        $databaseUrl = getenv('DATABASE_URL') ?: null;
+        $databaseUrl = $_ENV['DATABASE_URL'] ?? $_SERVER['DATABASE_URL'] ?? getenv('DATABASE_URL') ?: null;
+
+        if ($databaseUrl === false) {
+            $databaseUrl = null;
+        }
 
         if ($databaseUrl === null) {
             $this->markTestSkipped('DATABASE_URL not set; skipping database integration test.');
         }
 
         try {
-            $this->connection = DriverManager::getConnection(['url' => $databaseUrl]);
+            $this->connection = DriverManager::getConnection(['url' => (string) $databaseUrl]);
             $this->connection->executeQuery('SELECT 1');
         } catch (\Throwable $e) {
             $this->markTestSkipped(
