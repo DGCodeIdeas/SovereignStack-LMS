@@ -1,0 +1,24 @@
+framework:
+    messenger:
+        failure_transport: failed
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    table_name: messenger_messages
+                    queue_name: async
+                    auto_setup: false
+                retry_strategy:
+                    max_retries: 1
+                    delay: 0
+                    multiplier: 1
+                    max_delay: 0
+                    jitter: 0.0
+            failed:
+                dsn: '%env(MESSENGER_FAILED_TRANSPORT_DSN)%'
+                options:
+                    table_name: messenger_messages
+                    auto_setup: false
+        routing:
+            'SovereignStack\Lms\Shared\Infrastructure\Messenger\Message\PrototypeMessage': async
+            'SovereignStack\Lms\Shared\Infrastructure\Messenger\Message\FailingPrototypeMessage': async

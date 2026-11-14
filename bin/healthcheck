@@ -1,0 +1,39 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\Tools\DsnParser;
+use Symfony\Component\Dotenv\Dotenv;
+
+require dirname(__DIR__).'/vendor/autoload.php';
+
+(new Dotenv())->bootEnv(dirname(__DIR__).'/.env');
+
+$url = $_SERVER['DATABASE_URL'] ?? $_ENV['DATABASE_URL'] ?? null;
+if (!\is_string($url) || $url === '') {
+    fwrite(STDERR, "DATABASE_URL is not set\n");
+    exit(1);
+}
+
+try {
+    $params = (new DsnParser([
+        'mysql' => 'pdo_mysql',
+        'mysql2' => 'pdo_mysql',
+        'postgres' => 'pdo_pgsql',
+        'postgresql' => 'pdo_pgsql',
+        'pgsql' => 'pdo_pgsql',
+        'sqlite' => 'pdo_sqlite',
+        'sqlite3' => 'pdo_sqlite',
+    ]))->parse($url);
+
+    $connection = DriverManager::getConnection($params);
+    $connection->executeQuery('SELECT 1');
+    $connection->close();
+    echo "OK\n";
+    exit(0);
+} catch (\Throwable $e) {
+    fwrite(STDERR, 'NOT READY: '.$e->getMessage().PHP_EOL);
+    exit(1);
+}
