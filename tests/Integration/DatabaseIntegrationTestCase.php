@@ -37,15 +37,13 @@ abstract class DatabaseIntegrationTestCase extends TestCase
         }
 
         if ($databaseUrl === null) {
-            fwrite(STDERR, "SKIP: DATABASE_URL not set. _ENV keys: " . implode(',', array_keys($_ENV)) . " _SERVER keys: " . implode(',', array_keys($_SERVER)) . " getenv: " . var_export(getenv('DATABASE_URL'), true) . "\n");
             $this->markTestSkipped('DATABASE_URL not set');
         }
 
-        fwrite(STDERR, "Connecting to: " . $databaseUrl . "\n");
         try {
-            // Parse the URL manually to avoid DBAL's URL parsing issues
+            // Parse the URL manually to avoid DBAL 4.x URL parsing issues
             $parts = parse_url($databaseUrl);
-            $params = [
+            $this->connection = DriverManager::getConnection([
                 'driver' => 'pdo_mysql',
                 'host' => $parts['host'] ?? '127.0.0.1',
                 'port' => $parts['port'] ?? 3306,
@@ -53,15 +51,10 @@ abstract class DatabaseIntegrationTestCase extends TestCase
                 'password' => $parts['pass'] ?? 'lms_test',
                 'dbname' => ltrim($parts['path'] ?? '/lms_test', '/'),
                 'charset' => 'utf8mb4',
-            ];
-            fwrite(STDERR, "Parsed params: host=" . $params['host'] . " port=" . $params['port'] . " user=" . $params['user'] . " dbname=" . $params['dbname'] . "\n");
-            $this->connection = DriverManager::getConnection($params);
+            ]);
             $this->connection->executeQuery('SELECT 1');
         } catch (\Throwable $e) {
-            fwrite(STDERR, "SKIP: Connection failed: " . $e->getMessage() . "\n");
-            $this->markTestSkipped(
-                'Database connection failed: ' . $e->getMessage(),
-            );
+            $this->markTestSkipped('Database connection failed: ' . $e->getMessage());
         }
     }
 
