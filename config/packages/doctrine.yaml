@@ -12,5 +12,3 @@ doctrine:
                     engine: InnoDB
                 profiling_collect_backtrace: false
                 use_savepoints: true
-    orm:
-        enabled: false
