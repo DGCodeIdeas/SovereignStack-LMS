@@ -11,4 +11,3 @@ parameters:
     symfony:
         containerXmlPath: var/cache/dev/AppKernelDevDebugContainer.xml
     reportUnmatchedIgnoredErrors: true
-    checkGenericClassInNonGenericScope: false
