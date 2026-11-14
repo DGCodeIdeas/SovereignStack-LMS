@@ -11,7 +11,7 @@ parameters:
         - '#Call to internal method Doctrine\\DBAL\\Connection::getParams#'
         - '#Call to internal method PHPUnit\\Framework\\TestCase::addToAssertionCount#'
         - "#Offset 'platform' on array#"
-        - "#Parameter .* of static method Doctrine\\DBAL\\DriverManager::getConnection#"
+        - "#Parameter .* Doctrine\\\\DBAL\\\\DriverManager::getConnection#"
         - '#Call to method PHPUnit\\Framework\\Assert::assertNotNull#'
         - '#Result of method Doctrine\\DBAL\\Connection::beginTransaction#'
         - '#Variable \$tx is never read#'
