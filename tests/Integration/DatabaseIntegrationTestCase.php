@@ -14,10 +14,13 @@ abstract class DatabaseIntegrationTestCase extends TestCase
 
     protected function setUp(): void
     {
-        $databaseUrl = $_ENV['DATABASE_URL'] ?? $_SERVER['DATABASE_URL'] ?? getenv('DATABASE_URL') ?: null;
+        $databaseUrl = $_ENV['DATABASE_URL'] ?? $_SERVER['DATABASE_URL'] ?? null;
 
-        if ($databaseUrl === false) {
-            $databaseUrl = null;
+        if ($databaseUrl === null) {
+            $envVal = getenv('DATABASE_URL');
+            if ($envVal !== false && $envVal !== '') {
+                $databaseUrl = $envVal;
+            }
         }
 
         if ($databaseUrl === null) {
