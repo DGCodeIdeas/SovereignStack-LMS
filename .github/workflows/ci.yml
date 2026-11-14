@@ -106,7 +106,7 @@ jobs:
         env:
           DATABASE_URL: "${{ matrix.database.url-scheme }}://lms_test:lms_test@127.0.0.1:3306/lms_test?charset=utf8mb4"
           MESSENGER_TRANSPORT_DSN: "doctrine://default"
-        run: vendor/bin/phpunit --testsuite=Integration --no-coverage
+        run: vendor/bin/phpunit --testsuite=Integration --no-coverage --testdox
 
       - name: Migration rollback test
         env:
