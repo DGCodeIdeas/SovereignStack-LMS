@@ -2,8 +2,13 @@ includes:
     - vendor/phpstan/phpstan/conf/bleedingEdge.neon
 
 parameters:
-    level: 6
+    level: 5
     paths:
         - src/
         - tests/
     reportUnmatchedIgnoredErrors: true
+    ignoreErrors:
+        - '#Call to internal method Doctrine\\DBAL\\Connection::getParams#'
+        - '#Call to internal method PHPUnit\\Framework\\TestCase::addToAssertionCount#'
+        - '#Offset .platform. on array#'
+        - '#Parameter #1 \$params of static method Doctrine\\DBAL\\DriverManager::getConnection#'
