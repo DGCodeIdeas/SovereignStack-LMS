@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Request a password reset - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Request a password reset</h1>
+
+    <p>Enter the email address associated with your account. If the account exists, we will send a reset link.</p>
+
+    <form method="post" action="{{ path('app_request_password_reset') }}" class="form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('request_password_reset') }}">
+
+        <div class="form-field">
+            <label for="email">Email address</label>
+            <input id="email" name="email" type="email" autocomplete="email" required autofocus>
+        </div>
+
+        <button type="submit" class="button">Send reset link</button>
+    </form>
+
+    <p class="form-links"><a href="{{ path('app_login') }}">Back to sign in</a></p>
+{% endblock %}

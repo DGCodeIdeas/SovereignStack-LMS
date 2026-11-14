@@ -3,3 +3,15 @@ controllers:
         path: ../src/Shared/Presentation/Controller/
         namespace: SovereignStack\Lms\Shared\Presentation\Controller
     type: attribute
+
+identity_controllers:
+    resource:
+        path: ../src/Identity/Presentation/Controller/
+        namespace: SovereignStack\Lms\Identity\Presentation\Controller
+    type: attribute
+
+organisation_controllers:
+    resource:
+        path: ../src/Organisation/Presentation/Controller/
+        namespace: SovereignStack\Lms\Organisation\Presentation\Controller
+    type: attribute

@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Organisations - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Organisations</h1>
+
+    <section class="panel">
+        <h2>Your organisations</h2>
+
+        {% if organisations is empty %}
+            <p>You are not a member of any organisation yet.</p>
+        {% else %}
+            <ul class="organisation-list">
+                {% for organisation in organisations %}
+                    <li>
+                        <a href="{{ path('app_organisation_members', {organisationId: organisation.id.value}) }}">
+                            {{ organisation.name }}
+                        </a>
+                        <span class="slug">{{ organisation.slug }}</span>
+                        <span class="member-count">{{ memberCounts[organisation.id.value] }} member(s)</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>Create an organisation</h2>
+
+        <form method="post" action="{{ path('app_organisation_create') }}" class="form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('create_organisation') }}">
+
+            <div class="form-field">
+                <label for="name">Name</label>
+                <input id="name" name="name" type="text" required>
+            </div>
+
+            <div class="form-field">
+                <label for="slug">Slug</label>
+                <input id="slug" name="slug" type="text" required pattern="[a-z0-9-]+">
+                <p class="field-hint">Lowercase letters, numbers and hyphens only.</p>
+            </div>
+
+            <button type="submit" class="button">Create organisation</button>
+        </form>
+    </section>
+{% endblock %}

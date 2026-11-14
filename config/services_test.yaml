@@ -6,3 +6,10 @@ services:
     SovereignStack\Lms\Tests\Functional\Fixtures\ProblemProbeController:
         tags:
             - controller.service_arguments
+
+    SovereignStack\Lms\Tests\Functional\Fixtures\DeterministicTokenGenerator:
+        public: true
+
+    SovereignStack\Lms\Shared\Application\Token\TokenGeneratorInterface:
+        alias: SovereignStack\Lms\Tests\Functional\Fixtures\DeterministicTokenGenerator
+        public: true
