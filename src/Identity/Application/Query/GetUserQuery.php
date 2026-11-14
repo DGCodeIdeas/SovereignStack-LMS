@@ -1,0 +1,12 @@
+<?php
+
+declare(strict_types=1);
+
+namespace SovereignStack\Lms\Identity\Application\Query;
+
+final readonly class GetUserQuery
+{
+    public function __construct(
+        public string $userId,
+    ) {}
+}
