@@ -1,0 +1,4 @@
+problem_probe:
+    path: /_test/problem/{type}
+    controller: SovereignStack\Lms\Tests\Functional\Fixtures\ProblemProbeController
+    methods: [GET]

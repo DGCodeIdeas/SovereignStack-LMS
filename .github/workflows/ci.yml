@@ -139,3 +139,6 @@ jobs:
 
       - name: Integration tests against ${{ matrix.name }}
         run: vendor/bin/phpunit --testsuite integration
+
+      - name: Functional tests against ${{ matrix.name }}
+        run: vendor/bin/phpunit --testsuite functional
