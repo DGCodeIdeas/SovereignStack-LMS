@@ -1,6 +1,8 @@
 parameters:
     app.prototype_event_table: 'messenger_prototype_events'
     app.prototype_failure_table: 'messenger_prototype_failures'
+    app.file_storage_root: '%kernel.project_dir%/var/storage'
+    app.file_storage_max_bytes: 10485760
 
 services:
     _defaults:
@@ -11,6 +13,9 @@ services:
         resource: '../src/'
         exclude:
             - '../src/Shared/Domain/'
+            - '../src/Shared/Application/Exception/'
+            - '../src/Shared/Application/Storage/'
+            - '../src/Shared/Application/Transaction/'
             - '../src/Shared/Infrastructure/Messenger/Message/'
             - '../src/Kernel.php'
 
@@ -19,3 +24,21 @@ services:
 
     SovereignStack\Lms\Shared\Domain\Clock\ClockInterface:
         alias: SovereignStack\Lms\Shared\Infrastructure\Clock\SystemClock
+
+    SovereignStack\Lms\Shared\Application\Transaction\TransactionManagerInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Persistence\DbalTransactionManager
+        public: true
+
+    SovereignStack\Lms\Shared\Application\Storage\FileStorageInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Storage\LocalFileStorage
+        public: true
+
+    SovereignStack\Lms\Shared\Infrastructure\Storage\LocalFileStorage:
+        arguments:
+            $rootDirectory: '%app.file_storage_root%'
+            $maxBytes: '%app.file_storage_max_bytes%'
+
+    SovereignStack\Lms\Shared\Infrastructure\Logging\CorrelationIdProcessor:
+        autoconfigure: false
+        tags:
+            - { name: monolog.processor }
