@@ -37,13 +37,16 @@ abstract class DatabaseIntegrationTestCase extends TestCase
         }
 
         if ($databaseUrl === null) {
-            $this->markTestSkipped('DATABASE_URL not set. $_ENV keys: ' . implode(',', array_keys($_ENV)) . ' $_SERVER keys: ' . implode(',', array_keys($_SERVER)));
+            fwrite(STDERR, "SKIP: DATABASE_URL not set. _ENV keys: " . implode(',', array_keys($_ENV)) . " _SERVER keys: " . implode(',', array_keys($_SERVER)) . " getenv: " . var_export(getenv('DATABASE_URL'), true) . "\n");
+            $this->markTestSkipped('DATABASE_URL not set');
         }
 
+        fwrite(STDERR, "Connecting to: " . $databaseUrl . "\n");
         try {
             $this->connection = DriverManager::getConnection(['url' => $databaseUrl]);
             $this->connection->executeQuery('SELECT 1');
         } catch (\Throwable $e) {
+            fwrite(STDERR, "SKIP: Connection failed: " . $e->getMessage() . "\n");
             $this->markTestSkipped(
                 'Database connection failed for URL ' . $databaseUrl . ': ' . $e->getMessage(),
             );
