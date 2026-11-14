@@ -1,0 +1,8 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    SovereignStack\Lms\Tests\Functional\Fixtures\ProblemProbeController:
+        tags:
+            - controller.service_arguments
