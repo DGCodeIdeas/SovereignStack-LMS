@@ -1,0 +1,141 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Static Analysis & Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, pdo_sqlite, bcmath, curl, sodium, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-publish
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Security audit
+        run: composer audit --no-interaction
+
+      - name: Ensure Doctrine ORM is absent (DBAL-only architecture)
+        run: |
+          if composer why doctrine/orm >/dev/null 2>&1; then
+            echo "::error::doctrine/orm must not be installed"
+            exit 1
+          fi
+
+      - name: Coding standards
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff --ansi
+
+      - name: PHPStan (level max)
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=512M
+
+      - name: Unit tests
+        run: vendor/bin/phpunit --testsuite unit
+
+      - name: Architecture tests
+        run: vendor/bin/phpunit --testsuite architecture
+
+      - name: Lint YAML
+        run: php bin/console lint:yaml config --parse-tags
+
+      - name: Lint container
+        run: php bin/console lint:container --env=test
+
+  integration:
+    name: Integration Tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: MySQL 8.4
+            image: mysql:8.4
+            database_url: 'mysql://root:root@127.0.0.1:3306/lms_test?charset=utf8mb4'
+            service_env: '{"MYSQL_ROOT_PASSWORD":"root","MYSQL_DATABASE":"lms_test"}'
+            health_cmd: 'mysqladmin ping -h 127.0.0.1 -uroot -proot'
+          - name: MariaDB 12.3
+            image: mariadb:12.3
+            database_url: 'mysql://root:root@127.0.0.1:3306/lms_test?charset=utf8mb4'
+            service_env: '{"MARIADB_ROOT_PASSWORD":"root","MARIADB_DATABASE":"lms_test"}'
+            health_cmd: 'healthcheck.sh --connect --innodb_initialized'
+    services:
+      db:
+        image: ${{ matrix.image }}
+        env: ${{ fromJSON(matrix.service_env) }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.health_cmd }}"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      APP_ENV: test
+      APP_DEBUG: 1
+      DATABASE_URL: ${{ matrix.database_url }}
+      MESSENGER_TRANSPORT_DSN: 'doctrine://default?auto_setup=false'
+      MESSENGER_FAILED_TRANSPORT_DSN: 'doctrine://default?queue_name=failed'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, pdo_sqlite, bcmath, curl, sodium, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run migrations against ${{ matrix.name }}
+        run: php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+      - name: Integration tests against ${{ matrix.name }}
+        run: vendor/bin/phpunit --testsuite integration

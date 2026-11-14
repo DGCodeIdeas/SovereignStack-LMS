@@ -1,0 +1,21 @@
+parameters:
+    app.prototype_event_table: 'messenger_prototype_events'
+    app.prototype_failure_table: 'messenger_prototype_failures'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    SovereignStack\Lms\:
+        resource: '../src/'
+        exclude:
+            - '../src/Shared/Domain/'
+            - '../src/Shared/Infrastructure/Messenger/Message/'
+            - '../src/Kernel.php'
+
+    SovereignStack\Lms\Shared\Domain\Uuid\UuidGeneratorInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Uuid\SymfonyUidUuidGenerator
+
+    SovereignStack\Lms\Shared\Domain\Clock\ClockInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Clock\SystemClock

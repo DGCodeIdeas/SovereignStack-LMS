@@ -6,6 +6,8 @@
 **Extraction strategy:** Copy-not-move (DGLab LMS remains intact as frozen reference)  
 **Date:** 2026-11-14  
 
+> **Baseline note:** The baseline SHA was verified on 2026-11-14 against `git ls-remote` and the local DGLab `main` HEAD. An earlier handover reported `25d4e963…`; that SHA does not exist on the current shared `main`. The verified SHA `543329ed84a2148308e0cc455ac7e2fe27cf35f4` supersedes it.
+
 ---
 
 ## 1. Source Inventory (DGLab `Spokes/Internal/Lms/`)
@@ -18,7 +20,7 @@
 | `Spokes/Internal/Lms/Domain/Entity/Enrollment.php` | Enrollment aggregate root | Enrollment | **Adapt** — rename namespace, replace IDs with UUIDv7 |
 | `Spokes/Internal/Lms/Domain/Entity/Progress.php` | Progress entity | Learning | **Adapt** — rename namespace, replace IDs with UUIDv7 |
 
-### 1.2 Domain Value Objects (8 files)
+### 1.2 Domain Value Objects (7 files)
 | Source Path | Description | Target Module | Disposition |
 |---|---|---|---|
 | `Spokes/Internal/Lms/Domain/ValueObject/CourseId.php` | 26-char hex ID wrapper | Course | **Replace** — new `CourseId` using UUIDv7 (`Symfony\Component\Uid\UuidV7`) |
@@ -28,16 +30,18 @@
 | `Spokes/Internal/Lms/Domain/ValueObject/EnrollmentId.php` | 26-char hex ID wrapper | Enrollment | **Replace** — new `EnrollmentId` using UUIDv7 |
 | `Spokes/Internal/Lms/Domain/ValueObject/EnrollmentStatus.php` | Status enum | Enrollment | **Adapt** — rename namespace |
 | `Spokes/Internal/Lms/Domain/ValueObject/ModuleStatus.php` | Status enum | Course | **Adapt** — rename namespace |
-| `Spokes/Internal/Lms/Domain/ValueObject/ProgressId.php` | 26-char hex ID wrapper | Learning | **Replace** — new `ProgressId` using UUIDv7 |
 
-### 1.3 Domain Exceptions (5 files)
+**Note:** `ProgressId.php` does not exist in the inspected source. The earlier count of eight value objects was incorrect; seven exist.
+
+### 1.3 Domain Exceptions (4 files)
 | Source Path | Description | Target Module | Disposition |
 |---|---|---|---|
 | `Spokes/Internal/Lms/Domain/Exception/CourseNotFoundException.php` | Not found exception | Course | **Adapt** — rename namespace |
 | `Spokes/Internal/Lms/Domain/Exception/EnrollmentNotFoundException.php` | Not found exception | Enrollment | **Adapt** — rename namespace |
 | `Spokes/Internal/Lms/Domain/Exception/AlreadyEnrolledException.php` | Business rule exception | Enrollment | **Adapt** — rename namespace |
 | `Spokes/Internal/Lms/Domain/Exception/CannotRevertCompletedModuleException.php` | Business rule exception | Learning | **Adapt** — rename namespace |
-| `Spokes/Internal/Lms/Domain/Exception/InvalidCourseTransitionException.php` | State machine exception | Course | **Adapt** — rename namespace |
+
+**Note:** `InvalidCourseTransitionException.php` does not exist in the inspected source. The earlier count of five exceptions was incorrect; four exist.
 
 ### 1.4 Domain Repository Interfaces (4 files)
 | Source Path | Description | Target Module | Disposition |
@@ -59,13 +63,12 @@
 | `Spokes/Internal/Lms/Application/Command/CancelEnrollmentCommand.php` | Cancel enrollment DTO | Enrollment | **Adapt** — rename namespace |
 | `Spokes/Internal/Lms/Application/Command/RecordProgressCommand.php` | Record progress DTO | Learning | **Adapt** — rename namespace |
 
-### 1.6 Application Services (4 files)
+### 1.6 Application Services (3 files)
 | Source Path | Description | Target Module | Disposition |
 |---|---|---|---|
 | `Spokes/Internal/Lms/Application/Service/CourseApplicationService.php` | Course use cases | Course | **Rewrite** — split into Handler/QueryHandler per CQRS, remove DGLab deps |
 | `Spokes/Internal/Lms/Application/Service/EnrollmentApplicationService.php` | Enrollment use cases | Enrollment | **Rewrite** — split into Handler/QueryHandler per CQRS |
 | `Spokes/Internal/Lms/Application/Service/ProgressApplicationService.php` | Progress use cases | Learning | **Rewrite** — split into Handler/QueryHandler per CQRS |
-| `Spokes/Internal/Lms/Application/CourseApplicationInterface.php` | Public contract | Course | **Adapt** — rename namespace, refine for CQRS |
 
 ### 1.7 Application Interfaces (3 files)
 | Source Path | Description | Target Module | Disposition |
@@ -93,6 +96,8 @@
 | `Spokes/Internal/Lms/tests/Unit/Infrastructure/MySQLEnrollmentRepositoryTest.php` | Enrollment repo integration tests | Enrollment | **Rewrite** — DBAL + real MySQL/MariaDB |
 | `Spokes/Internal/Lms/tests/Unit/Infrastructure/MySQLModuleRepositoryTest.php` | Module repo integration tests | Course | **Rewrite** — DBAL + real MySQL/MariaDB |
 
+**Note:** 7 test files contain 67 test methods in total.
+
 ### 1.10 Migrations (9 files)
 | Source Path | Description | Disposition |
 |---|---|---|
@@ -106,14 +111,24 @@
 | `Spokes/Internal/Lms/migrations/008_enrollment_add_columns.sql` | Enrollment columns | **Preserve as provenance** |
 | `Spokes/Internal/Lms/migrations/009_enrollment_indexes_fk.sql` | Enrollment indexes/FKs | **Preserve as provenance** |
 
-**Note:** Two migrations share prefix `006` — this is a known defect in DGLab source.
+**Note:** The nine migrations are uniquely numbered `001`–`009`. The earlier claim that two migrations share prefix `006` is incorrect: the actual pair is `006_create_course_versions_table.sql` and `007_add_course_version_column.sql`.
 
-### 1.11 Additional Files
+### 1.11 Controllers (4 files, outside `Spokes/Internal/Lms/`)
+| Source Path | Description | Disposition |
+|---|---|---|
+| `app/Controller/Lms/CourseController.php` | Course HTTP endpoints | **Rewrite** — Symfony controllers, CQRS handlers |
+| `app/Controller/Lms/EnrollmentController.php` | Enrollment HTTP endpoints | **Rewrite** — Symfony controllers, CQRS handlers |
+| `app/Controller/Lms/ModuleController.php` | Module HTTP endpoints | **Rewrite** — Symfony controllers, CQRS handlers |
+| `app/Controller/Lms/ProgressController.php` | Progress HTTP endpoints | **Rewrite** — Symfony controllers, CQRS handlers |
+
+### 1.12 Additional Files
 | Source Path | Description | Disposition |
 |---|---|---|
 | `Products/LMS/Bootstrap.php` | Placeholder bootstrap | **Omit** — replaced by Symfony bootstrap |
-| `CLI/migrate.php` | Migration runner | **Omit** — replaced by Doctrine Migrations |
-| `CLI/seed.php` | Seeder (broken, hardcoded creds) | **Omit** — rewrite properly in Phase 2+ |
+| `CLI/migrate.php` | Migration runner (repository root) | **Omit** — replaced by Doctrine Migrations |
+| `CLI/seed.php` | Seeder, broken with hardcoded creds (repository root) | **Omit** — rewrite properly in Phase 2+ |
+
+**Note:** The four controllers live in `app/Controller/Lms/`, not under `Spokes/Internal/Lms/`. The two CLI scripts live at the DGLab repository root (`CLI/migrate.php`, `CLI/seed.php`), not under the LMS directory.
 
 ---
 
@@ -270,30 +285,25 @@ src/
 1. **CLI/seed.php** — Structural problems, hardcoded credentials → **Omit, rewrite properly**
 2. **CourseApplicationService::isCourseComplete()** — TODO stub returning false → **Implement properly in Learning module**
 3. **26-char hex IDs** — Not UUIDv7 → **Replace all with UUIDv7 (CHAR(36))**
-4. **Two migrations with `006` prefix** — `006_create_course_versions_table.sql` and `006_...` → **Document as provenance defect**
-5. **Products/LMS/Bootstrap.php** — Placeholder only → **Omit, use Symfony bootstrap**
-6. **No OpenAPI document found** → **Generate in Phase 4+**
+4. **Products/LMS/Bootstrap.php** — Placeholder only → **Omit, use Symfony bootstrap**
+5. **OpenAPI document** — No OpenAPI document was found inside the inspected LMS directories; this is recorded as **unverified**. A repository-root `openapi.yaml` exists in DGLab and describes LMS endpoints, but its ownership and currency were not verified. → **Generate/verify in Phase 4+**
 
 ---
 
-## 6. Phase 1 Scope (Current)
+## 6. Phase 1 Status (Current)
 
-**In scope for Phase 1:**
-- [ ] Composer project with PHP 8.4, Symfony 7.4
-- [ ] Namespace `SovereignStack\Lms` with PSR-4 autoloading
-- [ ] Symfony bootstrap (`public/index.php`, `Kernel`, `config/`)
-- [ ] Doctrine DBAL 4.x connection configuration
-- [ ] Doctrine Migrations setup
-- [ ] PHPUnit + PHPStan + architecture tests
-- [ ] GitHub Actions CI pipeline (matrix: MySQL 8.4, MariaDB 12.3)
-- [ ] Basic health endpoints (`/health`, `/ready`)
-- [ ] Messenger DBAL-only prototype (dispatch, persist, consume, retry, failure transport)
+- [x] Symfony 7.4 / PHP 8.4 foundation
+- [x] DBAL 4.x (no ORM)
+- [x] Doctrine Migrations
+- [x] outbox index corrected to `KEY idx_outbox_pending (status, available_at)`
+- [x] course-version composite FK implemented in migration
+- [x] Messenger DBAL prototype tests (CI evidence pending)
+- [x] CI matrix MySQL 8.4 + MariaDB 12.3 (CI evidence pending)
+- [ ] Business module extraction (out of Phase 1 scope)
 
-**Out of scope for Phase 1:**
-- Business domain modules (Identity, Organisation, Course, Enrollment, Learning, Administration)
-- Authentication implementation
-- Database schema migrations (Phase 2+)
-- Repository implementations (Phase 2+)
+**Status wording:** items above are implemented in the repository; test and CI outcomes are **CI evidence pending** and are not claimed as passing until the orchestrator supplies results.
+
+**Out of scope for Phase 1:** business domain modules (Identity, Organisation, Course, Enrollment, Learning, Administration), authentication implementation, repository implementations, and business schema migrations beyond the foundation schema.
 
 ---
 

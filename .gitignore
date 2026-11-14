@@ -17,8 +17,9 @@ Thumbs.db
 .phpunit.result.cache
 .phpunit.cache/
 coverage/
-### Composer ###
-composer.lock
+### Symfony generated ###
+/config/reference.php
+.php-cs-fixer.cache
 ### Node (if frontend build is added later) ###
 node_modules/
 npm-debug.log
