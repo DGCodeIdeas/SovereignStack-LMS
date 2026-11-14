@@ -2,8 +2,6 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
-        bind:
-            string $projectDir: '%kernel.project_dir%'
 
     SovereignStack\Lms\:
         resource: '../src/'
