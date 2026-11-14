@@ -37,7 +37,7 @@ abstract class DatabaseIntegrationTestCase extends TestCase
         }
 
         if ($databaseUrl === null) {
-            $this->markTestSkipped('DATABASE_URL not set; skipping database integration test.');
+            $this->markTestSkipped('DATABASE_URL not set. $_ENV keys: ' . implode(',', array_keys($_ENV)) . ' $_SERVER keys: ' . implode(',', array_keys($_SERVER)));
         }
 
         try {
