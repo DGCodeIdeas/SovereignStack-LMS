@@ -43,7 +43,7 @@ abstract class DatabaseIntegrationTestCase extends TestCase
 
         fwrite(STDERR, "Connecting to: " . $databaseUrl . "\n");
         try {
-            $this->connection = DriverManager::getConnection(['url' => $databaseUrl]);
+            $this->connection = DriverManager::getConnection(['url' => $databaseUrl, 'driver' => 'pdo_mysql']);
             $this->connection->executeQuery('SELECT 1');
         } catch (\Throwable $e) {
             fwrite(STDERR, "SKIP: Connection failed: " . $e->getMessage() . "\n");
