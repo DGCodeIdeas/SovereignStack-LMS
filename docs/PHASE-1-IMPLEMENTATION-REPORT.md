@@ -36,7 +36,7 @@
 
 ## Committed
 
-Committed on branch `feature/phase-1-symfony-foundation-v2` and proposed in PR #2 (base `main`), commits `5be3a09..b0d2de5`:
+Committed on branch `feature/phase-1-symfony-foundation-v2` and proposed in PR #2 (base `main`), commits `5be3a09..f312a3a`:
 
 - `5be3a09` chore(phase-1): bootstrap Symfony 7.4 LTS application and quality tooling
 - `672970d` feat(db): add Phase 1 schema with outbox and course-version integrity constraints
@@ -44,6 +44,8 @@ Committed on branch `feature/phase-1-symfony-foundation-v2` and proposed in PR #
 - `351f622` test: add architecture, unit and health coverage
 - `3d313d5` ci: add quality gates and MySQL 8.4 / MariaDB 12.3 integration matrix
 - `b0d2de5` docs: record Phase 1 implementation and reconcile extraction/licence documentation
+- `497fa86` docs: record Phase 1 CI evidence
+- `f312a3a` fix(course): enforce published course version immutability
 
 ## Tested locally
 
@@ -73,21 +75,24 @@ The PHPUnit runner reports 2–5 deprecation notices about doc-comment metadata;
 
 ## Tested in CI
 
-CI workflow `CI` (`.github/workflows/ci.yml`) ran on PR #2 against `feature/phase-1-symfony-foundation-v2`. Two runs completed successfully:
+CI workflow `CI` (`.github/workflows/ci.yml`) ran on PR #2 against `feature/phase-1-symfony-foundation-v2`. Both matrix jobs completed successfully on head `f312a3a`:
 
 | Job | Conclusion | Duration | Evidence |
 |---|---|---|---|
-| Static Analysis & Unit Tests | PASS | 18s | Composer validate/audit, ORM-absence gate, PHP-CS-Fixer, PHPStan max, unit 6 tests / 53 assertions, architecture 12 tests / 78 assertions, YAML + container lint |
-| Integration Tests (MySQL 8.4) | PASS | 51s | 1 migration executed, 11 SQL queries; 22 tests / 88 assertions |
-| Integration Tests (MariaDB 12.3) | PASS | 50s | 1 migration executed, 11 SQL queries; 22 tests / 88 assertions |
+| Static Analysis & Unit Tests | PASS | 24s | Composer validate/audit, ORM-absence gate, PHP-CS-Fixer, PHPStan max, unit 6 tests / 53 assertions, architecture 12 tests / 78 assertions, YAML + container lint |
+| Integration Tests (MySQL 8.4) | PASS | 56s | 1 migration executed, 11 SQL queries; 25 tests / 98 assertions |
+| Integration Tests (MariaDB 12.3) | PASS | 42s | 1 migration executed, 11 SQL queries; 25 tests / 98 assertions |
 
 ### CI results
 
-- PR run `43573513624` (pull_request event): all three jobs `SUCCESS` — Static 18s, MySQL 8.4 51s, MariaDB 12.3 50s.
-- Push run `43573489783` (branch push): all three jobs `SUCCESS` — Static 20s, MySQL 8.4 53s, MariaDB 12.3 1m19s.
+- PR run `43578638038` (pull_request event, head `f312a3a`): all three jobs `SUCCESS` — Static 24s, MySQL 8.4 56s, MariaDB 12.3 42s.
+- Push run `43578633274` (branch push, head `f312a3a`): all three jobs `SUCCESS` — Static 22s, MySQL 8.4 50s, MariaDB 12.3 42s.
 - Migration log on both engines: `finished in ..., 1 migrations executed, 11 sql queries` and `[OK] Successfully migrated to version: SovereignStack\Lms\Migrations\Version20261114000000`.
-- Integration logs on both engines: `Tests: 22, Assertions: 88, PHPUnit Deprecations: 5.`
+- Integration logs on both engines: `Tests: 25, Assertions: 98, PHPUnit Deprecations: 5.`
+- Published and archived version deletion is rejected and the owning course's published reference remains intact, verified on both MySQL 8.4 and MariaDB 12.3 (`testDeletingPublishedVersionIsRejectedAndPublishedReferenceRemainsIntact`, `testDeletingArchivedVersionIsRejected`).
 - PHPUnit reports doc-comment deprecation notices (2–5); these are not failures and do not trip `failOnWarning`.
+
+The evidence above is collected on head `f312a3a`, the last code change. The documentation-only commit that follows it re-runs the identical matrix and does not alter these results.
 
 ## Not tested locally
 
@@ -118,12 +123,12 @@ None of these is required to complete Phase 1: GitHub Actions provides both mand
 | Unit tests | Local | PASS | 6 tests / 53 assertions |
 | Architecture tests | Local | PASS | 12 tests / 78 assertions |
 | Migration on MariaDB 11.8.6 | Local | PASS | 11 SQL statements; rollback/re-apply pass |
-| Integration tests on MariaDB 11.8.6 | Local | PASS | 22 tests / 88 assertions |
+| Integration tests on MariaDB 11.8.6 | Local | PASS | 25 tests / 98 assertions |
 | Messenger retry/failure transport | Local | PASS | integration suite |
 | Composite FK + CHECK rejection | Local | PASS | integration suite |
-| Migration on MySQL 8.4 | CI | PASS | 1 migration, 11 SQL queries (run 43573513624) |
-| Migration on MariaDB 12.3 | CI | PASS | 1 migration, 11 SQL queries (run 43573513624) |
-| Integration tests on MySQL 8.4 | CI | PASS | 22 tests / 88 assertions (run 43573513624) |
-| Integration tests on MariaDB 12.3 | CI | PASS | 22 tests / 88 assertions (run 43573513624) |
+| Migration on MySQL 8.4 | CI | PASS | 1 migration, 11 SQL queries (run 43578638038) |
+| Migration on MariaDB 12.3 | CI | PASS | 1 migration, 11 SQL queries (run 43578638038) |
+| Integration tests on MySQL 8.4 | CI | PASS | 25 tests / 98 assertions (run 43578638038) |
+| Integration tests on MariaDB 12.3 | CI | PASS | 25 tests / 98 assertions (run 43578638038) |
 
 No test result is claimed without execution evidence. CI rows reflect completed GitHub Actions runs on PR #2.
