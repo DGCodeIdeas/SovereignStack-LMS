@@ -15,8 +15,6 @@
         <server name="APP_ENV" value="test"/>
         <server name="APP_DEBUG" value="1"/>
         <server name="KERNEL_CLASS" value="SovereignStack\Lms\Kernel"/>
-        <env name="DATABASE_URL" value="mysql://lms_test:lms_test@127.0.0.1:3306/lms_test?charset=utf8mb4"/>
-        <env name="MESSENGER_TRANSPORT_DSN" value="doctrine://default"/>
     </php>
 
     <testsuites>
