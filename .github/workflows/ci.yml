@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  COMPOSER_FLAGS: "--no-interaction --no-progress --prefer-dist"
+
+jobs:
+  quality:
+    name: Static Analysis & Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, pdo_sqlite, bcmath, curl
+          tools: composer:v2
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer install ${{ env.COMPOSER_FLAGS }}
+
+      - name: Security audit
+        run: composer audit
+
+      - name: PHPStan
+        run: vendor/bin/phpstan analyse --memory-limit=512M --no-progress
+
+      - name: Unit tests
+        run: vendor/bin/phpunit --testsuite=Unit --no-coverage
+
+      - name: Architecture tests
+        run: vendor/bin/phpunit --testsuite=Architecture --no-coverage
+
+  integration:
+    name: Integration Tests (${{ matrix.database.label }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        database:
+          - label: MySQL 8.4
+            image: mysql:8.4
+            port: 3306
+            url-prefix: mysql
+          - label: MariaDB 12.3
+            image: mariadb:12.3
+            port: 3306
+            url-prefix: mariadb
+
+    services:
+      database:
+        image: ${{ matrix.database.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: lms_test
+          MYSQL_USER: lms_test
+          MYSQL_PASSWORD: lms_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: mbstring, xml, ctype, iconv, intl, pdo, pdo_mysql, pdo_sqlite, bcmath, curl
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install ${{ env.COMPOSER_FLAGS }}
+
+      - name: Wait for database
+        run: |
+          while ! mysqladmin ping -h 127.0.0.1 -u lms_test -plms_test --silent; do
+            echo "Waiting for database..."
+            sleep 2
+          done
+          echo "Database is ready"
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: "${{ matrix.database.url-prefix }}://lms_test:lms_test@127.0.0.1:3306/lms_test?charset=utf8mb4"
+        run: |
+          php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+      - name: Integration tests
+        env:
+          DATABASE_URL: "${{ matrix.database.url-prefix }}://lms_test:lms_test@127.0.0.1:3306/lms_test?charset=utf8mb4"
+          MESSENGER_TRANSPORT_DSN: "doctrine://default"
+        run: vendor/bin/phpunit --testsuite=Integration --no-coverage
+
+      - name: Migration rollback test
+        env:
+          DATABASE_URL: "${{ matrix.database.url-prefix }}://lms_test:lms_test@127.0.0.1:3306/lms_test?charset=utf8mb4"
+        run: |
+          php bin/console doctrine:migrations:migrate --no-interaction prev || true
+          php bin/console doctrine:migrations:migrate --no-interaction

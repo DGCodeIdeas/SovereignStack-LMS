@@ -1,0 +1,15 @@
+controllers:
+    resource:
+        path: ../src/*/Presentation/Controller/
+        namespace: SovereignStack\Lms
+    type: attribute
+
+health:
+    path: /health
+    controller: SovereignStack\Lms\Shared\Presentation\Controller\HealthController::health
+    methods: [GET]
+
+readiness:
+    path: /ready
+    controller: SovereignStack\Lms\Shared\Presentation\Controller\HealthController::readiness
+    methods: [GET]
