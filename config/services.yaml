@@ -13,6 +13,10 @@ services:
             - '../src/*/Domain/ValueObject/'
             - '../src/*/Domain/Exception/'
 
+    SovereignStack\Lms\Shared\Presentation\Controller\:
+        resource: '../src/*/Presentation/Controller/'
+        tags: ['controller.service_arguments']
+
     SovereignStack\Lms\Shared\Domain\Clock\ClockInterface:
         class: SovereignStack\Lms\Shared\Infrastructure\Clock\SystemClock
 
