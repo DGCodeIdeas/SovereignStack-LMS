@@ -25,7 +25,7 @@
 - Doctrine Migrations 3.9.8 with `migrations/Version20261114000000.php`.
 - Schema foundation: organisations, users, courses, course_versions, messenger_messages, outbox_messages, audit_events, Messenger prototype tables.
 - Outbox index corrected to `KEY idx_outbox_pending (status, available_at)` (no filtered index).
-- Course-version ownership enforced by a composite unique key, a composite foreign key, and a CHECK constraint that requires the denormalized course id to equal the course's own id. A `BEFORE DELETE` trigger preserves the intended `ON DELETE SET NULL` behaviour without MariaDB's CHECK limitation.
+- Course-version ownership enforced by a composite unique key, a composite foreign key, and a CHECK constraint that requires the denormalized course id to equal the course's own id. Published and archived versions are immutable: a `BEFORE DELETE` trigger rejects their deletion, and `ON DELETE RESTRICT` blocks deletion of any referenced version. A published course's reference is never cleared.
 - Symfony Messenger DBAL-only prototype:
   - `doctrine://default` async transport and `failed` transport, both on the migration-managed `messenger_messages` table (`auto_setup: false`).
   - Dispatch/persistence, real worker consumption, retry, failure transport, idempotency, and caller-transaction participation tests.
@@ -59,13 +59,15 @@ Evidence from PHP 8.4.27, Composer 2.10.2, and a private MariaDB 11.8.6 instance
 | PHP-CS-Fixer dry run | `Found 0 of 23 files that can be fixed` |
 | Unit suite | 6 tests, 53 assertions, pass |
 | Architecture suite | 12 tests, 78 assertions, pass |
-| Integration suite (MariaDB 11.8.6) | 22 tests, 88 assertions, pass |
+| Integration suite (MariaDB 11.8.6) | 25 tests, 98 assertions, pass |
 | Migration up | 1 migration, 11 SQL statements, pass |
 | Migration rollback (`prev`) | pass; schema returned to 0 |
 | Migration re-apply | pass |
 | Messenger retry/failure transport | pass within integration suite |
 | Composite FK + CHECK rejection | pass within integration suite |
-| Version deletion nulls both columns | pass within integration suite |
+| Published/archived version deletion rejected | pass within integration suite |
+| Published reference remains intact after rejected deletion | pass within integration suite |
+| Referenced draft deletion FK-rejected | pass within integration suite |
 
 The PHPUnit runner reports 2–5 deprecation notices about doc-comment metadata; these are not failures and do not trip `failOnWarning`.
 

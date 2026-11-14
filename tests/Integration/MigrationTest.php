@@ -83,7 +83,7 @@ final class MigrationTest extends DatabaseIntegrationTestCase
         self::assertStringContainsString('chk_courses_published_version_ownership', $normalizedCourses);
 
         $triggerCount = $this->fetchInt(
-            "SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE() AND trigger_name = 'trg_course_versions_release_published_reference'",
+            "SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE() AND trigger_name = 'trg_course_versions_prevent_immutable_delete'",
         );
         self::assertSame(1, $triggerCount);
     }
@@ -138,19 +138,29 @@ final class MigrationTest extends DatabaseIntegrationTestCase
         self::assertSame($courseA, $row['current_published_version_course_id']);
     }
 
-    public function testVersionDeletionSetsBothColumnsNull(): void
+    public function testDeletingPublishedVersionIsRejectedAndPublishedReferenceRemainsIntact(): void
     {
         $connection = $this->connection();
         $organisationId = $this->insertOrganisation($connection);
         $userId = $this->insertUser($connection);
         $courseA = $this->insertCourse($connection, $organisationId, $userId, 'course-a-'.bin2hex(random_bytes(8)));
-        $versionA = $this->insertVersion($connection, $courseA, $userId, 1);
+        $versionA = $this->insertVersion($connection, $courseA, $userId, 1, 'published');
 
         $connection->executeStatement(
             'UPDATE courses SET current_published_version_id = :versionId, current_published_version_course_id = :courseId WHERE id = :id',
             ['versionId' => $versionA, 'courseId' => $courseA, 'id' => $courseA],
         );
-        $connection->executeStatement('DELETE FROM course_versions WHERE id = :id', ['id' => $versionA]);
+
+        $thrown = null;
+
+        try {
+            $connection->executeStatement('DELETE FROM course_versions WHERE id = :id', ['id' => $versionA]);
+        } catch (\Throwable $e) {
+            $thrown = $e;
+        }
+
+        self::assertInstanceOf(Exception::class, $thrown);
+        self::assertSame(1, $this->fetchInt('SELECT COUNT(*) FROM course_versions WHERE id = :id', ['id' => $versionA]));
 
         $row = $connection->fetchAssociative(
             'SELECT current_published_version_id, current_published_version_course_id FROM courses WHERE id = :id',
@@ -158,8 +168,75 @@ final class MigrationTest extends DatabaseIntegrationTestCase
         );
 
         self::assertIsArray($row);
-        self::assertNull($row['current_published_version_id']);
-        self::assertNull($row['current_published_version_course_id']);
+        self::assertSame($versionA, $row['current_published_version_id']);
+        self::assertSame($courseA, $row['current_published_version_course_id']);
+    }
+
+    public function testDeletingArchivedVersionIsRejected(): void
+    {
+        $connection = $this->connection();
+        $organisationId = $this->insertOrganisation($connection);
+        $userId = $this->insertUser($connection);
+        $courseA = $this->insertCourse($connection, $organisationId, $userId, 'course-a-'.bin2hex(random_bytes(8)));
+        $versionA = $this->insertVersion($connection, $courseA, $userId, 1, 'archived');
+
+        $thrown = null;
+
+        try {
+            $connection->executeStatement('DELETE FROM course_versions WHERE id = :id', ['id' => $versionA]);
+        } catch (\Throwable $e) {
+            $thrown = $e;
+        }
+
+        self::assertInstanceOf(Exception::class, $thrown);
+        self::assertSame(1, $this->fetchInt('SELECT COUNT(*) FROM course_versions WHERE id = :id', ['id' => $versionA]));
+    }
+
+    public function testDeletingUnreferencedDraftVersionSucceeds(): void
+    {
+        $connection = $this->connection();
+        $organisationId = $this->insertOrganisation($connection);
+        $userId = $this->insertUser($connection);
+        $courseA = $this->insertCourse($connection, $organisationId, $userId, 'course-a-'.bin2hex(random_bytes(8)));
+        $versionA = $this->insertVersion($connection, $courseA, $userId, 1, 'draft');
+
+        $connection->executeStatement('DELETE FROM course_versions WHERE id = :id', ['id' => $versionA]);
+
+        self::assertSame(0, $this->fetchInt('SELECT COUNT(*) FROM course_versions WHERE id = :id', ['id' => $versionA]));
+    }
+
+    public function testDeletingReferencedDraftVersionIsRejectedByForeignKey(): void
+    {
+        $connection = $this->connection();
+        $organisationId = $this->insertOrganisation($connection);
+        $userId = $this->insertUser($connection);
+        $courseA = $this->insertCourse($connection, $organisationId, $userId, 'course-a-'.bin2hex(random_bytes(8)));
+        $versionA = $this->insertVersion($connection, $courseA, $userId, 1, 'draft');
+
+        $connection->executeStatement(
+            'UPDATE courses SET current_published_version_id = :versionId, current_published_version_course_id = :courseId WHERE id = :id',
+            ['versionId' => $versionA, 'courseId' => $courseA, 'id' => $courseA],
+        );
+
+        $thrown = null;
+
+        try {
+            $connection->executeStatement('DELETE FROM course_versions WHERE id = :id', ['id' => $versionA]);
+        } catch (\Throwable $e) {
+            $thrown = $e;
+        }
+
+        self::assertInstanceOf(ForeignKeyConstraintViolationException::class, $thrown);
+        self::assertSame(1, $this->fetchInt('SELECT COUNT(*) FROM course_versions WHERE id = :id', ['id' => $versionA]));
+
+        $row = $connection->fetchAssociative(
+            'SELECT current_published_version_id, current_published_version_course_id FROM courses WHERE id = :id',
+            ['id' => $courseA],
+        );
+
+        self::assertIsArray($row);
+        self::assertSame($versionA, $row['current_published_version_id']);
+        self::assertSame($courseA, $row['current_published_version_course_id']);
     }
 
     public function testUuidColumnAndDatetimePrecision(): void
@@ -296,7 +373,7 @@ final class MigrationTest extends DatabaseIntegrationTestCase
         return $id;
     }
 
-    private function insertVersion(Connection $connection, string $courseId, string $userId, int $versionNumber): string
+    private function insertVersion(Connection $connection, string $courseId, string $userId, int $versionNumber, string $status = 'draft'): string
     {
         $id = Uuid::v7()->toRfc4122();
         $timestamp = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
@@ -306,6 +383,8 @@ final class MigrationTest extends DatabaseIntegrationTestCase
             'course_id' => $courseId,
             'version_number' => $versionNumber,
             'title' => 'Version '.$versionNumber,
+            'status' => $status,
+            'published_at' => 'published' === $status ? $timestamp : null,
             'created_by' => $userId,
             'created_at' => $timestamp,
         ]);

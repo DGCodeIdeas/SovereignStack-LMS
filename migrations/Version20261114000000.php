@@ -114,7 +114,7 @@ final class Version20261114000000 extends AbstractMigration
         );
 
         $this->addSql(
-            'CREATE TRIGGER trg_course_versions_release_published_reference BEFORE DELETE ON course_versions FOR EACH ROW UPDATE courses SET current_published_version_id = NULL, current_published_version_course_id = NULL WHERE current_published_version_id = OLD.id'
+            'CREATE TRIGGER trg_course_versions_prevent_immutable_delete BEFORE DELETE ON course_versions FOR EACH ROW BEGIN IF OLD.status IN (\'published\', \'archived\') THEN SIGNAL SQLSTATE \'45000\' SET MESSAGE_TEXT = \'Published or archived course versions are immutable and cannot be deleted\'; END IF; END'
         );
 
         $this->addSql(
@@ -209,7 +209,7 @@ final class Version20261114000000 extends AbstractMigration
         // Release the circular FK first: while courses.fk_courses_published_version
         // exists, InnoDB refuses to drop the referenced table course_versions, and
         // while course_versions rows exist it refuses to drop courses first.
-        $this->addSql('DROP TRIGGER IF EXISTS trg_course_versions_release_published_reference');
+        $this->addSql('DROP TRIGGER IF EXISTS trg_course_versions_prevent_immutable_delete');
         $this->addSql('ALTER TABLE courses DROP FOREIGN KEY fk_courses_published_version');
         $this->addSql('DROP TABLE IF EXISTS messenger_prototype_failures');
         $this->addSql('DROP TABLE IF EXISTS messenger_prototype_events');
