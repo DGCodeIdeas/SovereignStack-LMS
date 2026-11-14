@@ -3,6 +3,8 @@ parameters:
     app.prototype_failure_table: 'messenger_prototype_failures'
     app.file_storage_root: '%kernel.project_dir%/var/storage'
     app.file_storage_max_bytes: 10485760
+    app.base_url: '%env(APP_BASE_URL)%'
+    app.mail_from: 'no-reply@sovereignstack.local'
 
 services:
     _defaults:
@@ -37,6 +39,47 @@ services:
         arguments:
             $rootDirectory: '%app.file_storage_root%'
             $maxBytes: '%app.file_storage_max_bytes%'
+
+    SovereignStack\Lms\Identity\Domain\Repository\UserRepositoryInterface:
+        alias: SovereignStack\Lms\Identity\Infrastructure\Persistence\DBALUserRepository
+
+    SovereignStack\Lms\Identity\Domain\Repository\UserProfileRepositoryInterface:
+        alias: SovereignStack\Lms\Identity\Infrastructure\Persistence\DBALUserProfileRepository
+
+    SovereignStack\Lms\Identity\Domain\Repository\UserTokenRepositoryInterface:
+        alias: SovereignStack\Lms\Identity\Infrastructure\Persistence\DBALUserTokenRepository
+
+    SovereignStack\Lms\Identity\Domain\Repository\RoleRepositoryInterface:
+        alias: SovereignStack\Lms\Identity\Infrastructure\Persistence\DBALRoleRepository
+
+    SovereignStack\Lms\Organisation\Domain\Repository\OrganisationRepositoryInterface:
+        alias: SovereignStack\Lms\Organisation\Infrastructure\Persistence\DBALOrganisationRepository
+
+    SovereignStack\Lms\Organisation\Domain\Repository\MembershipRepositoryInterface:
+        alias: SovereignStack\Lms\Organisation\Infrastructure\Persistence\DBALMembershipRepository
+
+    SovereignStack\Lms\Shared\Application\Audit\AuditLoggerInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Audit\DbalAuditLogger
+
+    SovereignStack\Lms\Shared\Application\Mail\AccountMailerInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Mail\SymfonyAccountMailer
+
+    SovereignStack\Lms\Shared\Application\Token\TokenGeneratorInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Token\RandomTokenGenerator
+
+    SovereignStack\Lms\Shared\Infrastructure\Mail\SymfonyAccountMailer:
+        arguments:
+            $baseUrl: '%app.base_url%'
+            $mailFrom: '%app.mail_from%'
+
+    SovereignStack\Lms\Identity\Application\Contract\PasswordHasherInterface:
+        alias: SovereignStack\Lms\Identity\Infrastructure\Security\SymfonyPasswordHasher
+
+    SovereignStack\Lms\Identity\Application\Contract\PermissionCheckerInterface:
+        alias: SovereignStack\Lms\Identity\Application\Security\PermissionChecker
+
+    SovereignStack\Lms\Organisation\Application\Contract\PermissionCheckerInterface:
+        alias: SovereignStack\Lms\Organisation\Application\Contract\PermissionCheckerAdapter
 
     SovereignStack\Lms\Shared\Infrastructure\Logging\CorrelationIdProcessor:
         autoconfigure: false
