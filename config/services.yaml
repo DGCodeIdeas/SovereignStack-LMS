@@ -12,9 +12,10 @@ services:
             - '../src/*/Domain/Entity/'
             - '../src/*/Domain/ValueObject/'
             - '../src/*/Domain/Exception/'
+            - '../src/*/Presentation/Controller/'
 
     SovereignStack\Lms\Shared\Presentation\Controller\:
-        resource: '../src/*/Presentation/Controller/'
+        resource: '../src/Shared/Presentation/Controller/'
         tags: ['controller.service_arguments']
 
     SovereignStack\Lms\Shared\Domain\Clock\ClockInterface:
