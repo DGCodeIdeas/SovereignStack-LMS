@@ -14,11 +14,24 @@ abstract class DatabaseIntegrationTestCase extends TestCase
 
     protected function setUp(): void
     {
-        $databaseUrl = $_ENV['DATABASE_URL'] ?? $_SERVER['DATABASE_URL'] ?? null;
+        // PHPUnit's <env> in phpunit.xml.dist sets env vars, but they may be
+        // overridden by CI. Try multiple sources.
+        $databaseUrl = null;
 
+        // Check $_ENV first (populated when variables_order includes E)
+        if (isset($_ENV['DATABASE_URL']) && is_string($_ENV['DATABASE_URL']) && $_ENV['DATABASE_URL'] !== '') {
+            $databaseUrl = $_ENV['DATABASE_URL'];
+        }
+
+        // Check $_SERVER
+        if ($databaseUrl === null && isset($_SERVER['DATABASE_URL']) && is_string($_SERVER['DATABASE_URL']) && $_SERVER['DATABASE_URL'] !== '') {
+            $databaseUrl = $_SERVER['DATABASE_URL'];
+        }
+
+        // Check getenv as last resort
         if ($databaseUrl === null) {
             $envVal = getenv('DATABASE_URL');
-            if ($envVal !== false && $envVal !== '') {
+            if (is_string($envVal) && $envVal !== '') {
                 $databaseUrl = $envVal;
             }
         }
@@ -28,11 +41,11 @@ abstract class DatabaseIntegrationTestCase extends TestCase
         }
 
         try {
-            $this->connection = DriverManager::getConnection(['url' => (string) $databaseUrl]);
+            $this->connection = DriverManager::getConnection(['url' => $databaseUrl]);
             $this->connection->executeQuery('SELECT 1');
         } catch (\Throwable $e) {
             $this->markTestSkipped(
-                'Database connection failed: ' . $e->getMessage(),
+                'Database connection failed for URL ' . $databaseUrl . ': ' . $e->getMessage(),
             );
         }
     }
