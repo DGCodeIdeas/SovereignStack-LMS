@@ -1,0 +1,241 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ course.version.title ?? 'Course' }} - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <p class="form-links"><a href="{{ path('app_courses') }}">Back to courses</a></p>
+
+    <h1>{{ course.version.title ?? 'Course without a version' }}</h1>
+
+    <section class="panel">
+        <h2>Course metadata</h2>
+
+        <dl class="details">
+            <div class="details-row">
+                <dt>Slug</dt>
+                <dd>{{ course.slug }}</dd>
+            </div>
+            <div class="details-row">
+                <dt>Visibility</dt>
+                <dd>{{ course.visibility }}</dd>
+            </div>
+            <div class="details-row">
+                <dt>Version</dt>
+                <dd>
+                    {% if course.version is null %}
+                        No version exists yet.
+                    {% else %}
+                        v{{ course.version.versionNumber }} &mdash; status {{ course.version.status }}
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="details-row">
+                <dt>Published</dt>
+                <dd>{{ course.currentPublishedVersionId is null ? 'No published version' : course.currentPublishedVersionId }}</dd>
+            </div>
+        </dl>
+
+        <form method="post" action="{{ path('app_course_update', {courseId: course.id}) }}" class="form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('update_course') }}">
+
+            <div class="form-field">
+                <label for="title">Title</label>
+                <input id="title" name="title" type="text" maxlength="255" required
+                       value="{{ course.version.title ?? '' }}">
+            </div>
+
+            <div class="form-field">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="4">{{ course.version.description ?? '' }}</textarea>
+            </div>
+
+            <div class="form-field">
+                <label for="slug">Slug</label>
+                <input id="slug" name="slug" type="text" required pattern="[a-z0-9-]+"
+                       value="{{ course.slug }}">
+            </div>
+
+            <div class="form-field">
+                <label for="visibility">Visibility</label>
+                <select id="visibility" name="visibility">
+                    {% for visibility in ['organisation_only', 'restricted', 'public', 'archived'] %}
+                        <option value="{{ visibility }}" {{ course.visibility == visibility ? 'selected' : '' }}>{{ visibility }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="button">Save course details</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <h2>Lifecycle</h2>
+        <p>Submit a draft for review, then publish, archive or start a new draft from a published version.</p>
+
+        <div class="form-links">
+            <form method="post" action="{{ path('app_course_submit', {courseId: course.id}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit_review') }}">
+                <button type="submit" class="button">Submit for review</button>
+            </form>
+
+            <form method="post" action="{{ path('app_course_reject', {courseId: course.id}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('reject_review') }}">
+                <button type="submit" class="button">Reject review</button>
+            </form>
+
+            <form method="post" action="{{ path('app_course_publish', {courseId: course.id}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('publish_course') }}">
+                <button type="submit" class="button">Publish</button>
+            </form>
+
+            <form method="post" action="{{ path('app_course_archive', {courseId: course.id}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('archive_course') }}">
+                <button type="submit" class="button">Archive</button>
+            </form>
+
+            <form method="post" action="{{ path('app_course_new_draft', {courseId: course.id}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('new_draft') }}">
+                <button type="submit" class="button">New draft version</button>
+            </form>
+        </div>
+    </section>
+
+    {% if course.version is not null %}
+        <h2>Modules</h2>
+
+        {% if course.version.modules is empty %}
+            <p>This version has no modules yet.</p>
+        {% endif %}
+
+        {% for module in course.version.modules %}
+            {% set moduleLoop = loop %}
+            <section class="panel">
+                <h3>{{ module.title }}</h3>
+                <p>
+                    Position {{ module.position }}
+                    &middot; {{ module.isRequired ? 'required' : 'optional' }}
+                    {% if module.description is not null %}&middot; {{ module.description }}{% endif %}
+                </p>
+
+                <div class="form-links">
+                    <form method="post" action="{{ path('app_course_modules_reorder', {courseId: course.id}) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('reorder_modules') }}">
+                        {% for moduleId in moduleMoveIds[module.id].up %}
+                            <input type="hidden" name="module_ids[]" value="{{ moduleId }}">
+                        {% endfor %}
+                        <button type="submit" class="button" {{ moduleLoop.first ? 'disabled' : '' }}>Move module up</button>
+                    </form>
+
+                    <form method="post" action="{{ path('app_course_modules_reorder', {courseId: course.id}) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('reorder_modules') }}">
+                        {% for moduleId in moduleMoveIds[module.id].down %}
+                            <input type="hidden" name="module_ids[]" value="{{ moduleId }}">
+                        {% endfor %}
+                        <button type="submit" class="button" {{ moduleLoop.last ? 'disabled' : '' }}>Move module down</button>
+                    </form>
+
+                    <form method="post" action="{{ path('app_course_module_remove', {courseId: course.id, moduleId: module.id}) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('remove_module') }}">
+                        <button type="submit" class="button">Remove module</button>
+                    </form>
+                </div>
+
+                <h4>Lessons</h4>
+
+                {% if module.lessons is empty %}
+                    <p>No lessons in this module yet.</p>
+                {% endif %}
+
+                {% for lesson in module.lessons %}
+                    {% set lessonLoop = loop %}
+                    <section class="panel">
+                        <h5>{{ lesson.title }}</h5>
+                        <p>Position {{ lesson.position }}</p>
+
+                        <div class="form-links">
+                            <form method="post" action="{{ path('app_course_lessons_reorder', {courseId: course.id, moduleId: module.id}) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('reorder_lessons') }}">
+                                {% for lessonId in lessonMoveIds[module.id][lesson.id].up %}
+                                    <input type="hidden" name="lesson_ids[]" value="{{ lessonId }}">
+                                {% endfor %}
+                                <button type="submit" class="button" {{ lessonLoop.first ? 'disabled' : '' }}>Move lesson up</button>
+                            </form>
+
+                            <form method="post" action="{{ path('app_course_lessons_reorder', {courseId: course.id, moduleId: module.id}) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('reorder_lessons') }}">
+                                {% for lessonId in lessonMoveIds[module.id][lesson.id].down %}
+                                    <input type="hidden" name="lesson_ids[]" value="{{ lessonId }}">
+                                {% endfor %}
+                                <button type="submit" class="button" {{ lessonLoop.last ? 'disabled' : '' }}>Move lesson down</button>
+                            </form>
+
+                            <form method="post" action="{{ path('app_course_lesson_remove', {courseId: course.id, moduleId: module.id, lessonId: lesson.id}) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('remove_lesson') }}">
+                                <button type="submit" class="button">Remove lesson</button>
+                            </form>
+                        </div>
+
+                        <form method="post" action="{{ path('app_course_lesson_content', {courseId: course.id, lessonId: lesson.id}) }}" class="form">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('save_content') }}">
+
+                            <div class="form-field">
+                                <label for="content-{{ lesson.id }}">Content (HTML)</label>
+                                <textarea id="content-{{ lesson.id }}" name="content_html" rows="8">{{ lesson.content.html ?? '' }}</textarea>
+                                <p class="field-hint">
+                                    HTML is sanitised on save. A rich-text editor (HugeRTE, self-hosted with pinned assets)
+                                    is a separate UI follow-up and is not integrated in this gate.
+                                </p>
+                            </div>
+
+                            <div class="form-field">
+                                <label for="metadata-{{ lesson.id }}">Metadata (JSON, optional)</label>
+                                <input id="metadata-{{ lesson.id }}" name="metadata" type="text"
+                                       value="{{ lesson.content is null ? '' : lesson.content.metadata|json_encode }}">
+                            </div>
+
+                            <button type="submit" class="button">Save lesson content</button>
+                        </form>
+                    </section>
+                {% endfor %}
+
+                <form method="post" action="{{ path('app_course_lesson_add', {courseId: course.id, moduleId: module.id}) }}" class="form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('add_lesson') }}">
+
+                    <div class="form-field">
+                        <label for="lesson-title-{{ module.id }}">New lesson title</label>
+                        <input id="lesson-title-{{ module.id }}" name="title" type="text" maxlength="255" required>
+                    </div>
+
+                    <button type="submit" class="button">Add lesson</button>
+                </form>
+            </section>
+        {% endfor %}
+
+        <section class="panel">
+            <h2>Add module</h2>
+
+            <form method="post" action="{{ path('app_course_module_add', {courseId: course.id}) }}" class="form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('add_module') }}">
+
+                <div class="form-field">
+                    <label for="module-title">Module title</label>
+                    <input id="module-title" name="title" type="text" maxlength="255" required>
+                </div>
+
+                <div class="form-field">
+                    <label for="module-description">Module description</label>
+                    <textarea id="module-description" name="description" rows="3"></textarea>
+                </div>
+
+                <div class="form-field">
+                    <label for="module-required">
+                        <input id="module-required" name="is_required" type="checkbox" value="1" checked>
+                        Required module
+                    </label>
+                </div>
+
+                <button type="submit" class="button">Add module</button>
+            </form>
+        </section>
+    {% endif %}
+{% endblock %}

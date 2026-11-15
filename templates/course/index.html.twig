@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Courses - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Courses</h1>
+
+    <p><a class="button" href="{{ path('app_course_new') }}">Create course</a></p>
+
+    <section class="panel">
+        <h2>Courses you can author</h2>
+
+        {% if courses is empty %}
+            <p>No courses are available in your organisations yet.</p>
+        {% else %}
+            <table>
+                <caption>Courses across the organisations you belong to</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Title</th>
+                        <th scope="col">Slug</th>
+                        <th scope="col">Visibility</th>
+                        <th scope="col">Current version</th>
+                        <th scope="col">Organisation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                        <tr>
+                            <td>
+                                <a href="{{ path('app_course_edit', {courseId: course.id}) }}">{{ course.title }}</a>
+                            </td>
+                            <td>{{ course.slug }}</td>
+                            <td>{{ course.visibility }}</td>
+                            <td>
+                                {% if course.versionNumber is not null %}
+                                    v{{ course.versionNumber }} ({{ course.status }})
+                                {% else %}
+                                    none
+                                {% endif %}
+                                {% if course.currentPublishedVersionId is not null %}
+                                    <span class="tag">published</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ course.organisationName }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}
