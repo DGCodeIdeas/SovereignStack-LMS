@@ -67,6 +67,7 @@ The complete architecture specification and supporting deliverables are in [`doc
 
 - [`docs/SHARED-INFRASTRUCTURE.md`](docs/SHARED-INFRASTRUCTURE.md) — Shared infrastructure: transactions, results, problem responses, correlation IDs, file storage
 - [`docs/IDENTITY-ORGANISATION.md`](docs/IDENTITY-ORGANISATION.md) — Identity and organisation: schema, RBAC seed catalogue, authentication, tokens, security, and organisation isolation
+- [`docs/COURSE-CONTENT.md`](docs/COURSE-CONTENT.md) — Course content: schema, lifecycle, version immutability, ordering, authorisation, sanitisation and presentation routes
 - [`docs/SPEC-001-v2.1.md`](docs/SPEC-001-v2.1.md) — Complete architecture specification (160 + 3 decisions)
 - [`docs/DELIVERABLE-B-CHANGE-SUMMARY.md`](docs/DELIVERABLE-B-CHANGE-SUMMARY.md) — Change summary
 - [`docs/DELIVERABLE-C-TRACEABILITY-MATRIX.md`](docs/DELIVERABLE-C-TRACEABILITY-MATRIX.md) — Decision traceability matrix
