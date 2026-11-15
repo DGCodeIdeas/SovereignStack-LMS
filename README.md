@@ -66,6 +66,7 @@ Both **MySQL 8.4** and **MariaDB 12.3** are mandatory targets. Integration tests
 The complete architecture specification and supporting deliverables are in [`docs/`](docs/):
 
 - [`docs/SHARED-INFRASTRUCTURE.md`](docs/SHARED-INFRASTRUCTURE.md) — Shared infrastructure: transactions, results, problem responses, correlation IDs, file storage
+- [`docs/IDENTITY-ORGANISATION.md`](docs/IDENTITY-ORGANISATION.md) — Identity and organisation: schema, RBAC seed catalogue, authentication, tokens, security, and organisation isolation
 - [`docs/SPEC-001-v2.1.md`](docs/SPEC-001-v2.1.md) — Complete architecture specification (160 + 3 decisions)
 - [`docs/DELIVERABLE-B-CHANGE-SUMMARY.md`](docs/DELIVERABLE-B-CHANGE-SUMMARY.md) — Change summary
 - [`docs/DELIVERABLE-C-TRACEABILITY-MATRIX.md`](docs/DELIVERABLE-C-TRACEABILITY-MATRIX.md) — Decision traceability matrix

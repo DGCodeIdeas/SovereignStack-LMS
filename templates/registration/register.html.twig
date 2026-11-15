@@ -1,0 +1,48 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Register - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Create an account</h1>
+
+    <form method="post" action="{{ path('app_register') }}" class="form" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('register') }}">
+
+        <div class="form-field">
+            <label for="email">Email address</label>
+            <input id="email" name="email" type="email" value="{{ email }}" autocomplete="email" required>
+            {% for message in errors.email|default([]) %}
+                <p class="field-error" role="alert">{{ message }}</p>
+            {% endfor %}
+        </div>
+
+        <div class="form-field">
+            <label for="display_name">Display name</label>
+            <input id="display_name" name="display_name" type="text" value="{{ display_name }}" autocomplete="name">
+            {% for message in errors.display_name|default([]) %}
+                <p class="field-error" role="alert">{{ message }}</p>
+            {% endfor %}
+        </div>
+
+        <div class="form-field">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" required>
+            <p class="field-hint">Use at least 12 characters.</p>
+            {% for message in errors.password|default([]) %}
+                <p class="field-error" role="alert">{{ message }}</p>
+            {% endfor %}
+        </div>
+
+        <div class="form-field">
+            <label for="password_confirmation">Confirm password</label>
+            <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required>
+            {% for message in errors.password_confirmation|default([]) %}
+                <p class="field-error" role="alert">{{ message }}</p>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="button">Create account</button>
+    </form>
+
+    <p class="form-links"><a href="{{ path('app_login') }}">Already have an account? Sign in</a></p>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Choose a new password - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Choose a new password</h1>
+
+    <form method="post" action="{{ path('app_reset_password', {token: token}) }}" class="form" novalidate>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('reset_password') }}">
+
+        <div class="form-field">
+            <label for="password">New password</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" required autofocus>
+            <p class="field-hint">Use at least 12 characters.</p>
+            {% for message in errors.password|default([]) %}
+                <p class="field-error" role="alert">{{ message }}</p>
+            {% endfor %}
+        </div>
+
+        <div class="form-field">
+            <label for="password_confirmation">Confirm new password</label>
+            <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required>
+            {% for message in errors.password_confirmation|default([]) %}
+                <p class="field-error" role="alert">{{ message }}</p>
+            {% endfor %}
+        </div>
+
+        <button type="submit" class="button">Reset password</button>
+    </form>
+{% endblock %}

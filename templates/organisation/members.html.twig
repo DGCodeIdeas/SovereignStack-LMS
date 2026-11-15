@@ -1,0 +1,72 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ organisation.name }} members - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('app_organisations') }}">Back to organisations</a></p>
+
+    <h1>{{ organisation.name }}</h1>
+    <p class="slug">Slug: {{ organisation.slug }}</p>
+
+    <section class="panel">
+        <h2>Members</h2>
+
+        {% if members is empty %}
+            <p>This organisation has no members yet.</p>
+        {% else %}
+            <table class="data-table">
+                <caption>Organisation members</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">User ID</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Joined</th>
+                        <th scope="col">Ended</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in members %}
+                        <tr>
+                            <td>{{ member.userId }}</td>
+                            <td>{{ member.status }}</td>
+                            <td>{{ member.joinedAt ?: '—' }}</td>
+                            <td>{{ member.endedAt ?: '—' }}</td>
+                            <td>
+                                {% if member.status == 'active' %}
+                                    <form method="post"
+                                          action="{{ path('app_organisation_member_end', {organisationId: organisation.id.value, userId: member.userId}) }}">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('end_membership') }}">
+                                        <button type="submit" class="button button-secondary">
+                                            End membership for {{ member.userId }}
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span>Ended</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>Add a member</h2>
+
+        <form method="post"
+              action="{{ path('app_organisation_member_add', {organisationId: organisation.id.value}) }}"
+              class="form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('add_membership') }}">
+
+            <div class="form-field">
+                <label for="user_id">User ID</label>
+                <input id="user_id" name="user_id" type="text" required>
+                <p class="field-hint">Enter the UUID of an existing user.</p>
+            </div>
+
+            <button type="submit" class="button">Add member</button>
+        </form>
+    </section>
+{% endblock %}

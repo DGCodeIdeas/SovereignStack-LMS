@@ -1,0 +1,42 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Your account - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Your account</h1>
+
+    <dl class="details">
+        <div class="details-row">
+            <dt>Email</dt>
+            <dd>{{ email }}</dd>
+        </div>
+        <div class="details-row">
+            <dt>Status</dt>
+            <dd>{{ status }}</dd>
+        </div>
+    </dl>
+
+    <section class="panel">
+        <h2>Roles</h2>
+        <ul class="tag-list">
+            {% for role in roles %}
+                <li class="tag">{{ role }}</li>
+            {% else %}
+                <li>No roles assigned.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="panel">
+        <h2>Permissions</h2>
+        <ul class="tag-list">
+            {% for permission in permissions %}
+                <li class="tag">{{ permission }}</li>
+            {% else %}
+                <li>No permissions granted.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <p><a class="button" href="{{ path('app_change_password') }}">Change password</a></p>
+{% endblock %}

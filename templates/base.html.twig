@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{% block title %}SovereignStack LMS{% endblock %}</title>
+        <link rel="stylesheet" href="/assets/app.css">
+    </head>
+    <body>
+        <header class="site-header">
+            <nav class="site-nav" aria-label="Main navigation">
+                <a class="brand" href="{{ path('app_dashboard') }}">SovereignStack LMS</a>
+                <div class="nav-links">
+                    {% if app.user %}
+                        <a href="{{ path('app_account') }}">Account</a>
+                        <a href="{{ path('app_change_password') }}">Change password</a>
+                        <a href="{{ path('app_logout') }}">Log out</a>
+                    {% else %}
+                        <a href="{{ path('app_login') }}">Sign in</a>
+                        <a href="{{ path('app_register') }}">Register</a>
+                    {% endif %}
+                </div>
+            </nav>
+        </header>
+
+        <main class="container">
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label }}" role="status">{{ message }}</div>
+                {% endfor %}
+            {% endfor %}
+
+            {% block body %}{% endblock %}
+        </main>
+    </body>
+</html>
