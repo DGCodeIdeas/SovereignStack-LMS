@@ -15,3 +15,9 @@ organisation_controllers:
         path: ../src/Organisation/Presentation/Controller/
         namespace: SovereignStack\Lms\Organisation\Presentation\Controller
     type: attribute
+
+course_controllers:
+    resource:
+        path: ../src/Course/Presentation/Controller/
+        namespace: SovereignStack\Lms\Course\Presentation\Controller
+    type: attribute

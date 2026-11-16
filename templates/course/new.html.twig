@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New course - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Create a course</h1>
+
+    <p>A course is created with an empty draft version that you can then build out.</p>
+
+    <form method="post" action="{{ path('app_course_create') }}" class="form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('create_course') }}">
+
+        <div class="form-field">
+            <label for="organisation_id">Organisation</label>
+            <select id="organisation_id" name="organisation_id" required>
+                {% if organisations is empty %}
+                    <option value="">No organisations available</option>
+                {% endif %}
+                {% for organisation in organisations %}
+                    <option value="{{ organisation.id }}">{{ organisation.name }} ({{ organisation.slug }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-field">
+            <label for="title">Title</label>
+            <input id="title" name="title" type="text" maxlength="255" required>
+        </div>
+
+        <div class="form-field">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="4"></textarea>
+        </div>
+
+        <div class="form-field">
+            <label for="slug">Slug</label>
+            <input id="slug" name="slug" type="text" required pattern="[a-z0-9-]+">
+            <p class="field-hint">Lowercase letters, numbers and hyphens only.</p>
+        </div>
+
+        <button type="submit" class="button">Create draft course</button>
+    </form>
+
+    <p class="form-links"><a href="{{ path('app_courses') }}">Back to courses</a></p>
+{% endblock %}

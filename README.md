@@ -6,7 +6,7 @@
 
 ## Status
 
-**Phase 1 implementation** is in progress on branch `feature/phase-1-symfony-foundation-v2`. A pull request has been opened from this branch and is pending review.
+**Phase 1, Gate 2A and Gate 2B are merged to `main`.** Gate 2C (Course and Content) is implemented on `feature/phase-2c-course-content` and is pending review in PR #5.
 
 - **Specification version:** 2.1 (revised)
 - **Architecture decisions:** 163 approved (A-001–A-040, D-001–D-040, E-001–E-040, ADR-001–ADR-040, DB-041–DB-043)
@@ -41,6 +41,22 @@ php -S 127.0.0.1:8000 -t public
 symfony server:start
 ```
 
+## Local development server
+
+A persistent local Apache instance is available on **http://127.0.0.1:8082**:
+
+```bash
+./scripts/lms-server enable      # install + enable at boot + start (pkexec)
+./scripts/lms-server toggle      # start/stop
+./scripts/lms-server status      # service + /health + /ready
+./scripts/lms-server logs
+./scripts/lms-server disable     # stop + remove boot autostart
+```
+
+Privileged actions use `pkexec`, never `sudo`. See
+[`docs/LOCAL-SERVER.md`](docs/LOCAL-SERVER.md) for paths, persistence,
+troubleshooting and port changes.
+
 ## Test commands
 
 | Command | Purpose |
@@ -67,6 +83,9 @@ The complete architecture specification and supporting deliverables are in [`doc
 
 - [`docs/SHARED-INFRASTRUCTURE.md`](docs/SHARED-INFRASTRUCTURE.md) — Shared infrastructure: transactions, results, problem responses, correlation IDs, file storage
 - [`docs/IDENTITY-ORGANISATION.md`](docs/IDENTITY-ORGANISATION.md) — Identity and organisation: schema, RBAC seed catalogue, authentication, tokens, security, and organisation isolation
+- [`docs/COURSE-CONTENT.md`](docs/COURSE-CONTENT.md) — Course content: schema, lifecycle, version immutability, ordering, authorisation, sanitisation and presentation routes
+- [`docs/LOCAL-SERVER.md`](docs/LOCAL-SERVER.md) — Persistent local Apache/systemd toggle, pkexec usage and troubleshooting
+- [`docs/LOCAL-DATABASE-TUNING.md`](docs/LOCAL-DATABASE-TUNING.md) — Local MariaDB baseline, measurements and production-only recommendations
 - [`docs/SPEC-001-v2.1.md`](docs/SPEC-001-v2.1.md) — Complete architecture specification (160 + 3 decisions)
 - [`docs/DELIVERABLE-B-CHANGE-SUMMARY.md`](docs/DELIVERABLE-B-CHANGE-SUMMARY.md) — Change summary
 - [`docs/DELIVERABLE-C-TRACEABILITY-MATRIX.md`](docs/DELIVERABLE-C-TRACEABILITY-MATRIX.md) — Decision traceability matrix

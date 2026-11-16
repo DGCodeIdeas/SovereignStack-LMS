@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+#
+# Persistent local server toggle for SovereignStack-LMS.
+# Privileged actions use pkexec (never sudo).
+#
+set -euo pipefail
+
+readonly SERVICE_NAME="sovereignstack-lms.service"
+readonly UNIT_PATH="/etc/systemd/system/${SERVICE_NAME}"
+readonly APP_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly USER_NAME="$(id -un)"
+readonly GROUP_NAME="$(id -gn)"
+readonly STATE_DIR="${LMS_STATE_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/sovereignstack-lms}"
+readonly APACHE_DIR="${STATE_DIR}/apache"
+readonly RUN_DIR="${APACHE_DIR}/run"
+readonly LOG_DIR="${APACHE_DIR}/logs"
+readonly SESSION_DIR="${STATE_DIR}/php-sessions"
+readonly HOST="${LMS_HOST:-127.0.0.1}"
+readonly PORT="${LMS_PORT:-8082}"
+readonly URL="http://${HOST}:${PORT}"
+
+die() {
+    printf 'Error: %s\n' "$*" >&2
+    exit 1
+}
+
+info() {
+    printf '%s\n' "$*"
+}
+
+require_command() {
+    command -v "$1" >/dev/null 2>&1 || die "Missing command: $1"
+}
+
+require_pkexec() {
+    command -v pkexec >/dev/null 2>&1 || die "pkexec is required for privileged actions."
+}
+
+run_root() {
+    require_pkexec
+    pkexec "$@"
+}
+
+check_env() {
+    [[ -f "${APP_ROOT}/.env.local" ]] || die "${APP_ROOT}/.env.local is missing. Create it with DATABASE_URL, APP_BASE_URL and MAILER_DSN first."
+    grep -q '^DATABASE_URL=' "${APP_ROOT}/.env.local" || die ".env.local has no DATABASE_URL."
+    grep -q '^APP_BASE_URL=' "${APP_ROOT}/.env.local" || printf 'Warning: .env.local has no APP_BASE_URL.\n' >&2
+}
+
+render_config() {
+    install -d -m 0750 "${APACHE_DIR}" "${RUN_DIR}" "${LOG_DIR}"
+    install -d -m 0700 "${SESSION_DIR}"
+
+    sed \
+        -e "s|__APP_ROOT__|${APP_ROOT}|g" \
+        -e "s|__STATE_DIR__|${STATE_DIR}|g" \
+        -e "s|__USER__|${USER_NAME}|g" \
+        -e "s|__GROUP__|${GROUP_NAME}|g" \
+        -e "s|__HOST__|${HOST}|g" \
+        -e "s|__PORT__|${PORT}|g" \
+        "${APP_ROOT}/scripts/apache/httpd.conf.template" \
+        > "${APACHE_DIR}/httpd.conf"
+
+    chmod 0640 "${APACHE_DIR}/httpd.conf"
+    info "Rendered ${APACHE_DIR}/httpd.conf"
+}
+
+test_config() {
+    require_command apache2
+    render_config
+    /usr/sbin/apache2 -t -d "${APACHE_DIR}" -f "${APACHE_DIR}/httpd.conf"
+}
+
+install_unit() {
+    require_pkexec
+    local tmp
+    tmp="$(mktemp)"
+
+    sed \
+        -e "s|__APP_ROOT__|${APP_ROOT}|g" \
+        -e "s|__STATE_DIR__|${STATE_DIR}|g" \
+        -e "s|__USER__|${USER_NAME}|g" \
+        -e "s|__GROUP__|${GROUP_NAME}|g" \
+        "${APP_ROOT}/scripts/systemd/sovereignstack-lms.service.template" \
+        > "${tmp}"
+
+    chmod 0644 "${tmp}"
+    run_root /usr/bin/install -m 0644 "${tmp}" "${UNIT_PATH}"
+    rm -f "${tmp}"
+    run_root /usr/bin/systemctl daemon-reload
+    info "Installed ${UNIT_PATH}"
+}
+
+cmd_enable() {
+    check_env
+    test_config
+    install_unit
+    run_root /usr/bin/systemctl enable "${SERVICE_NAME}"
+    run_root /usr/bin/systemctl restart "${SERVICE_NAME}"
+    info "Enabled at boot and started: ${URL}"
+}
+
+cmd_disable() {
+    run_root /usr/bin/systemctl disable --now "${SERVICE_NAME}"
+    info "Disabled at boot and stopped."
+}
+
+cmd_start() {
+    run_root /usr/bin/systemctl start "${SERVICE_NAME}"
+    info "Started: ${URL}"
+}
+
+cmd_stop() {
+    run_root /usr/bin/systemctl stop "${SERVICE_NAME}"
+    info "Stopped."
+}
+
+cmd_restart() {
+    run_root /usr/bin/systemctl restart "${SERVICE_NAME}"
+    info "Restarted: ${URL}"
+}
+
+cmd_toggle() {
+    if /usr/bin/systemctl is-active --quiet "${SERVICE_NAME}"; then
+        cmd_stop
+    else
+        cmd_start
+    fi
+}
+
+cmd_status() {
+    /usr/bin/systemctl status "${SERVICE_NAME}" --no-pager || true
+    printf '\nURL: %s\n' "${URL}"
+    if command -v curl >/dev/null 2>&1; then
+        printf 'health: '
+        curl -fsS --max-time 3 "${URL}/health" || true
+        printf '\nready:  '
+        curl -fsS --max-time 3 "${URL}/ready" || true
+        printf '\n'
+    fi
+}
+
+cmd_logs() {
+    /usr/bin/journalctl -u "${SERVICE_NAME}" -n 100 --no-pager || {
+        die "Could not read the journal; try: pkexec journalctl -u ${SERVICE_NAME} -n 100 --no-pager"
+    }
+}
+
+cmd_config() {
+    test_config
+    info "Config: ${APACHE_DIR}/httpd.conf"
+    info "Logs:   ${LOG_DIR}/"
+}
+
+cmd_doctor() {
+    info "Repository: ${APP_ROOT}"
+    info "State:      ${STATE_DIR}"
+    info "URL:        ${URL}"
+    printf 'pkexec:     '; command -v pkexec || true
+    printf 'apache2:    '; command -v apache2 || true
+    printf 'systemctl:  '; command -v systemctl || true
+    printf 'mariadb:    '; /usr/bin/systemctl is-active mariadb 2>/dev/null || true
+    printf 'unit:       '; /usr/bin/systemctl is-enabled "${SERVICE_NAME}" 2>/dev/null || true
+    printf 'service:    '; /usr/bin/systemctl is-active "${SERVICE_NAME}" 2>/dev/null || true
+    printf 'port %s:    ' "${PORT}"
+    if ss -ltn "sport = :${PORT}" 2>/dev/null | grep -q LISTEN; then
+        info "listening"
+    else
+        info "free"
+    fi
+    [[ -f "${APP_ROOT}/.env.local" ]] && info ".env.local: present" || info ".env.local: MISSING"
+    command -v curl >/dev/null 2>&1 || return 0
+    printf 'health:     '; curl -fsS --max-time 3 "${URL}/health" 2>/dev/null || info "unreachable"
+    printf '\nready:      '; curl -fsS --max-time 3 "${URL}/ready" 2>/dev/null || info "unreachable"
+    printf '\n'
+}
+
+cmd_uninstall() {
+    run_root /usr/bin/systemctl disable --now "${SERVICE_NAME}" || true
+    run_root /usr/bin/rm -f "${UNIT_PATH}"
+    run_root /usr/bin/systemctl daemon-reload
+    info "Removed the systemd unit. Rendered config remains in ${APACHE_DIR}."
+}
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") <command>
+
+  enable      install the systemd unit, enable at boot, and start (pkexec)
+  disable     stop and disable at boot (pkexec)
+  toggle      start if stopped, stop if running (pkexec)
+  start       start now (pkexec)
+  stop        stop now (pkexec)
+  restart     restart now (pkexec)
+  status      service state plus /health and /ready
+  logs        last 100 journal lines
+  config      render and Apache syntax-check the config
+  doctor      dependency, env, port, service and readiness checks
+  uninstall   remove the unit (keeps rendered config and data)
+
+Environment overrides:
+  LMS_PORT=8083 LMS_HOST=127.0.0.1 LMS_STATE_DIR=... $(basename "$0") enable
+
+The service runs as ${USER_NAME}, binds only to ${HOST}:${PORT}, and uses:
+  ${APACHE_DIR}/httpd.conf
+  ${LOG_DIR}/
+  ${SESSION_DIR}/
+EOF
+}
+
+case "${1:-}" in
+    enable) cmd_enable ;;
+    disable) cmd_disable ;;
+    toggle) cmd_toggle ;;
+    start) cmd_start ;;
+    stop) cmd_stop ;;
+    restart) cmd_restart ;;
+    status) cmd_status ;;
+    logs) cmd_logs ;;
+    config) cmd_config ;;
+    doctor) cmd_doctor ;;
+    uninstall) cmd_uninstall ;;
+    ""|help|-h|--help) usage ;;
+    *) usage; exit 2 ;;
+esac
