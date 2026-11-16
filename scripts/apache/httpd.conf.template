@@ -1,0 +1,59 @@
+# Persistent local Apache for SovereignStack-LMS.
+# Rendered by scripts/lms-server; do not edit the installed copy directly.
+
+ServerRoot "__STATE_DIR__/apache"
+Listen __HOST__:__PORT__
+ServerName __HOST__
+ServerTokens Prod
+ServerSignature Off
+TraceEnable Off
+HostnameLookups Off
+
+User __USER__
+Group __GROUP__
+
+PidFile "__STATE_DIR__/apache/run/apache.pid"
+Mutex file:__STATE_DIR__/apache/run default
+ScoreBoardFile "__STATE_DIR__/apache/run/apache.scoreboard"
+
+ErrorLog "__STATE_DIR__/apache/logs/error.log"
+LogLevel warn
+
+TypesConfig /etc/mime.types
+DirectoryIndex index.php
+
+LogFormat "%h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" combined
+
+LoadModule mpm_prefork_module /usr/lib/apache2/modules/mod_mpm_prefork.so
+LoadModule authz_core_module /usr/lib/apache2/modules/mod_authz_core.so
+LoadModule authz_host_module /usr/lib/apache2/modules/mod_authz_host.so
+LoadModule dir_module /usr/lib/apache2/modules/mod_dir.so
+LoadModule mime_module /usr/lib/apache2/modules/mod_mime.so
+LoadModule alias_module /usr/lib/apache2/modules/mod_alias.so
+LoadModule env_module /usr/lib/apache2/modules/mod_env.so
+LoadModule setenvif_module /usr/lib/apache2/modules/mod_setenvif.so
+LoadModule filter_module /usr/lib/apache2/modules/mod_filter.so
+LoadModule php_module /usr/lib/apache2/modules/libphp8.4.so
+
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# The system-wide /var/lib/php/sessions is not writable by the dgci service user.
+php_value session.save_handler files
+php_value session.save_path "__STATE_DIR__/php-sessions"
+
+<VirtualHost __HOST__:__PORT__>
+    ServerName __HOST__
+    DocumentRoot "__APP_ROOT__/public"
+
+    <Directory "__APP_ROOT__/public">
+        Options -Indexes +FollowSymLinks
+        AllowOverride None
+        Require all granted
+        FallbackResource /index.php
+    </Directory>
+
+    ErrorLog "__STATE_DIR__/apache/logs/vhost-error.log"
+    CustomLog "__STATE_DIR__/apache/logs/access.log" combined
+</VirtualHost>

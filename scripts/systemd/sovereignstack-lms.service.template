@@ -1,0 +1,33 @@
+[Unit]
+Description=SovereignStack LMS local Apache (127.0.0.1:8082)
+Documentation=file://__APP_ROOT__/docs/LOCAL-SERVER.md
+After=network-online.target mariadb.service
+Wants=network-online.target
+ConditionPathExists=__APP_ROOT__/.env.local
+
+[Service]
+Type=simple
+User=__USER__
+Group=__GROUP__
+WorkingDirectory=__APP_ROOT__
+UMask=0027
+
+ExecStartPre=/usr/bin/install -d -m 0750 __STATE_DIR__/apache/run __STATE_DIR__/apache/logs
+ExecStartPre=/usr/bin/install -d -m 0700 __STATE_DIR__/php-sessions
+ExecStart=/usr/sbin/apache2 -d __STATE_DIR__/apache -f __STATE_DIR__/apache/httpd.conf -DFOREGROUND
+ExecReload=/usr/sbin/apache2 -d __STATE_DIR__/apache -f __STATE_DIR__/apache/httpd.conf -k graceful
+
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=10
+KillSignal=SIGTERM
+LimitNOFILE=65535
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target
