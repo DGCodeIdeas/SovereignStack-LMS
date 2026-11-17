@@ -124,6 +124,7 @@ final class EnrollmentSchemaTest extends DatabaseIntegrationTestCase
         self::assertStringContainsString('virtual', $extra);
 
         $expression = strtolower(str_replace('`', '', $this->rowString($row, 'GENERATION_EXPRESSION')));
+        $expression = preg_replace('/_[a-z0-9]+\'/i', "'", $expression) ?? $expression;
         self::assertStringContainsString('case when', $expression);
         self::assertStringContainsString("status = 'active'", $expression);
     }

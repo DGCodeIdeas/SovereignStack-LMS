@@ -170,7 +170,10 @@ final class LearningProgressRepositoryTest extends DatabaseIntegrationTestCase
         self::assertSame(ProgressStatus::IN_PROGRESS, $found->status());
         self::assertEquals($startedAt, $found->startedAt());
         self::assertEquals($updatedAt, $found->updatedAt());
-        self::assertSame(['position' => 2, 'answers' => ['a', 'b']], $found->progressData());
+        self::assertSame(
+            self::sortKeysRecursively(['position' => 2, 'answers' => ['a', 'b']]),
+            self::sortKeysRecursively($found->progressData()),
+        );
         self::assertSame(2, $found->version());
 
         $second = $this->lessonProgress($enrollmentId, $secondLessonId);
@@ -284,5 +287,23 @@ final class LearningProgressRepositoryTest extends DatabaseIntegrationTestCase
             $lessonId,
             new \DateTimeImmutable('2026-11-16T10:30:00+00:00'),
         );
+    }
+
+    /**
+     * @param array<array-key, mixed> $data
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function sortKeysRecursively(array $data): array
+    {
+        ksort($data);
+
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = self::sortKeysRecursively($value);
+            }
+        }
+
+        return $data;
     }
 }
