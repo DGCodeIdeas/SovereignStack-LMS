@@ -63,7 +63,7 @@ final class CreateCourseHandlerTest extends CourseApplicationTestCase
     public function testRejectsWhenActorCannotCreateCourses(): void
     {
         $this->permissions = new FakeCoursePermissionChecker(['course.create']);
-        $this->policy = new CourseAccessPolicy($this->permissions, $this->instructors);
+        $this->policy = new CourseAccessPolicy($this->permissions, $this->instructors, $this->clock);
 
         $this->expectException(ForbiddenException::class);
 

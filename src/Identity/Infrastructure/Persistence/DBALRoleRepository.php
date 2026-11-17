@@ -12,6 +12,7 @@ use SovereignStack\Lms\Identity\Domain\ValueObject\RoleIdentifier;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
 use SovereignStack\Lms\Shared\Domain\Uuid\UuidGeneratorInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdInterface;
+use SovereignStack\Lms\Shared\Infrastructure\Persistence\DatabaseValue;
 use SovereignStack\Lms\Shared\Infrastructure\Persistence\DateTimeCodec;
 
 final readonly class DBALRoleRepository implements RoleRepositoryInterface
@@ -108,5 +109,91 @@ final readonly class DBALRoleRepository implements RoleRepositoryInterface
             'assigned_by' => $assignedBy?->value(),
             'assigned_at' => DateTimeCodec::toDatabase($assignedAt),
         ]);
+    }
+
+    public function listAll(): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT code, name, description FROM roles ORDER BY code',
+        );
+
+        return array_map(
+            static fn (array $row): array => [
+                'code' => DatabaseValue::string($row, 'code'),
+                'name' => DatabaseValue::string($row, 'name'),
+                'description' => DatabaseValue::nullableString($row, 'description'),
+            ],
+            $rows,
+        );
+    }
+
+    public function assignmentsForUser(UserId $userId): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT r.code AS role_code, r.name AS role_name, ur.organisation_id, ur.assigned_at'
+            .' FROM user_roles ur'
+            .' INNER JOIN roles r ON r.id = ur.role_id'
+            .' WHERE ur.user_id = :user_id'
+            .' ORDER BY r.code, ur.assigned_at',
+            ['user_id' => $userId->value()],
+        );
+
+        return array_map(
+            static fn (array $row): array => [
+                'roleCode' => DatabaseValue::string($row, 'role_code'),
+                'roleName' => DatabaseValue::string($row, 'role_name'),
+                'organisationId' => DatabaseValue::nullableString($row, 'organisation_id'),
+                'assignedAt' => DateTimeCodec::fromDatabase(DatabaseValue::string($row, 'assigned_at'))->format(\DATE_ATOM),
+            ],
+            $rows,
+        );
+    }
+
+    public function revoke(
+        UserId $userId,
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId,
+    ): void {
+        $roleId = $this->findIdByCode($role);
+
+        if (null === $roleId) {
+            return;
+        }
+
+        $params = [
+            'user_id' => $userId->value(),
+            'role_id' => $roleId,
+        ];
+        $sql = 'DELETE FROM user_roles WHERE user_id = :user_id AND role_id = :role_id';
+
+        if (null === $organisationId) {
+            $sql .= ' AND organisation_id IS NULL';
+        } else {
+            $sql .= ' AND organisation_id = :organisation_id';
+            $params['organisation_id'] = $organisationId->value();
+        }
+
+        $this->connection->executeStatement($sql, $params);
+    }
+
+    public function countUsersWithRole(
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId = null,
+    ): int {
+        $sql = 'SELECT COUNT(DISTINCT ur.user_id) FROM user_roles ur'
+            .' INNER JOIN roles r ON r.id = ur.role_id'
+            .' WHERE r.code = :code';
+        $params = ['code' => $role->value()];
+
+        if (null === $organisationId) {
+            $sql .= ' AND ur.organisation_id IS NULL';
+        } else {
+            $sql .= ' AND ur.organisation_id = :organisation_id';
+            $params['organisation_id'] = $organisationId->value();
+        }
+
+        $count = $this->connection->fetchOne($sql, $params);
+
+        return \is_numeric($count) ? (int) $count : 0;
     }
 }

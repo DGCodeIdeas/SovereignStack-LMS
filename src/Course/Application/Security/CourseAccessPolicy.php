@@ -8,6 +8,7 @@ use SovereignStack\Lms\Course\Application\Contract\PermissionCheckerInterface;
 use SovereignStack\Lms\Course\Domain\Entity\Course;
 use SovereignStack\Lms\Course\Domain\Repository\CourseInstructorRepositoryInterface;
 use SovereignStack\Lms\Shared\Application\Exception\ForbiddenException;
+use SovereignStack\Lms\Shared\Domain\Clock\ClockInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\UserIdReference;
 
 /**
@@ -23,6 +24,7 @@ final readonly class CourseAccessPolicy
     public function __construct(
         private PermissionCheckerInterface $permissions,
         private CourseInstructorRepositoryInterface $instructors,
+        private ClockInterface $clock,
     ) {}
 
     public function requireEdit(string $actorUserId, Course $course): void
@@ -91,6 +93,8 @@ final readonly class CourseAccessPolicy
             return false;
         }
 
-        return null !== $this->instructors->findByCourseAndUser($course->id(), $actor);
+        $instructor = $this->instructors->findByCourseAndUser($course->id(), $actor);
+
+        return null !== $instructor && $instructor->isEffectiveAt($this->clock->now());
     }
 }

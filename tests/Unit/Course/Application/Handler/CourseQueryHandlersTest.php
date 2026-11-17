@@ -37,7 +37,7 @@ final class CourseQueryHandlersTest extends CourseApplicationTestCase
     {
         $this->draftCourse();
         $permissions = new FakeCoursePermissionChecker(['course.update', 'user.manage']);
-        $this->policy = new CourseAccessPolicy($permissions, $this->instructors);
+        $this->policy = new CourseAccessPolicy($permissions, $this->instructors, $this->clock);
 
         $this->expectException(ForbiddenException::class);
 
@@ -70,7 +70,7 @@ final class CourseQueryHandlersTest extends CourseApplicationTestCase
     {
         [$course] = $this->draftCourse();
         $permissions = new FakeCoursePermissionChecker(['user.manage', 'course.view']);
-        $this->policy = new CourseAccessPolicy($permissions, $this->instructors);
+        $this->policy = new CourseAccessPolicy($permissions, $this->instructors, $this->clock);
 
         $this->expectException(ForbiddenException::class);
 

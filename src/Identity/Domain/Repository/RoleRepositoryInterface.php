@@ -30,4 +30,30 @@ interface RoleRepositoryInterface
         ?UserId $assignedBy,
         \DateTimeImmutable $assignedAt,
     ): void;
+
+    /**
+     * @return list<array{code: string, name: string, description: null|string}>
+     */
+    public function listAll(): array;
+
+    /**
+     * @return list<array{
+     *     roleCode: string,
+     *     roleName: string,
+     *     organisationId: null|string,
+     *     assignedAt: string
+     * }>
+     */
+    public function assignmentsForUser(UserId $userId): array;
+
+    public function revoke(
+        UserId $userId,
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId,
+    ): void;
+
+    public function countUsersWithRole(
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId = null,
+    ): int;
 }

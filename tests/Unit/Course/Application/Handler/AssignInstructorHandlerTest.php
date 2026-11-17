@@ -44,7 +44,7 @@ final class AssignInstructorHandlerTest extends CourseApplicationTestCase
     {
         [$course] = $this->draftCourse();
         $this->permissions = new FakeCoursePermissionChecker(['user.manage']);
-        $this->policy = new CourseAccessPolicy($this->permissions, $this->instructors);
+        $this->policy = new CourseAccessPolicy($this->permissions, $this->instructors, $this->clock);
 
         $this->expectException(ForbiddenException::class);
 

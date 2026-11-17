@@ -114,18 +114,94 @@ final class UserRepositoryTest extends DatabaseIntegrationTestCase
         self::assertEquals($this->now->modify('+2 minutes'), $loaded->updatedAt());
     }
 
+    public function testSearchMatchesEmailAndDisplayNameOrderedNewestFirst(): void
+    {
+        $repository = $this->repository();
+        $first = $this->user('alpha@example.com', null, $this->now->modify('-2 minutes'));
+        $second = $this->user('beta@example.com', null, $this->now->modify('-1 minute'));
+        $third = $this->user('gamma@example.com', null, $this->now);
+
+        $repository->save($first);
+        $repository->save($second);
+        $repository->save($third);
+        $this->insertProfile($first->id()->value(), 'Zulu Person');
+        $this->insertProfile($third->id()->value(), 'Alpha Person');
+
+        $rows = $repository->search('example.com', 10, 0);
+
+        self::assertCount(3, $rows);
+        self::assertSame('gamma@example.com', $rows[0]['email']);
+        self::assertSame('Alpha Person', $rows[0]['displayName']);
+        self::assertSame(UserStatus::PENDING_VERIFICATION->value, $rows[0]['status']);
+        self::assertSame('beta@example.com', $rows[1]['email']);
+        self::assertSame('alpha@example.com', $rows[2]['email']);
+        self::assertSame('Zulu Person', $rows[2]['displayName']);
+        self::assertNull($rows[2]['lastLoginAt']);
+
+        $byDisplayName = $repository->search('zulu', 10, 0);
+        self::assertCount(1, $byDisplayName);
+        self::assertSame('alpha@example.com', $byDisplayName[0]['email']);
+        self::assertSame(1, $repository->countSearch('zulu'));
+        self::assertSame(3, $repository->countSearch('example.com'));
+    }
+
+    public function testSearchAppliesLimitAndOffset(): void
+    {
+        $repository = $this->repository();
+
+        $repository->save($this->user('one@example.com', null, $this->now->modify('-2 minutes')));
+        $repository->save($this->user('two@example.com', null, $this->now->modify('-1 minute')));
+        $repository->save($this->user('three@example.com', null, $this->now));
+
+        $rows = $repository->search('example.com', 2, 0);
+        self::assertCount(2, $rows);
+        self::assertSame('three@example.com', $rows[0]['email']);
+        self::assertSame('two@example.com', $rows[1]['email']);
+
+        $secondPage = $repository->search('example.com', 2, 2);
+        self::assertCount(1, $secondPage);
+        self::assertSame('one@example.com', $secondPage[0]['email']);
+
+        self::assertCount(3, $repository->search('', 1000, 0));
+    }
+
+    public function testSearchBindsTheQueryInsteadOfInterpolatingIt(): void
+    {
+        $repository = $this->repository();
+        $repository->save($this->user('safe@example.com'));
+
+        self::assertSame([], $repository->search("' OR 1=1 --", 10, 0));
+        self::assertSame(0, $repository->countSearch("' OR 1=1 --"));
+    }
+
+    private function insertProfile(string $userId, string $displayName): void
+    {
+        $this->connection()->insert('user_profiles', [
+            'id' => Uuid::v7()->toRfc4122(),
+            'user_id' => $userId,
+            'display_name' => $displayName,
+            'preferred_tz' => 'UTC',
+            'metadata' => '{}',
+            'created_at' => $this->now->format('Y-m-d H:i:s.u'),
+            'updated_at' => $this->now->format('Y-m-d H:i:s.u'),
+        ]);
+    }
+
     private function repository(): DBALUserRepository
     {
         return new DBALUserRepository($this->connection());
     }
 
-    private function user(string $email, ?string $uniqueEmail = null): User
-    {
+    private function user(
+        string $email,
+        ?string $uniqueEmail = null,
+        ?\DateTimeImmutable $createdAt = null,
+    ): User {
         return User::register(
             UserId::fromString(Uuid::v7()->toRfc4122()),
             Email::fromString($uniqueEmail ?? $email),
             'hashed-password',
-            $this->now,
+            $createdAt ?? $this->now,
         );
     }
 }

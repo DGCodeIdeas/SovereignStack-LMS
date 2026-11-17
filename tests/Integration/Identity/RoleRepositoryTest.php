@@ -108,6 +108,88 @@ final class RoleRepositoryTest extends DatabaseIntegrationTestCase
         );
     }
 
+    public function testListAllReturnsSeededCatalogue(): void
+    {
+        $roles = $this->repository()->listAll();
+
+        self::assertCount(4, $roles);
+        self::assertSame(
+            ['lms:admin', 'lms:instructor', 'lms:learner', 'platform:admin'],
+            array_map(static fn (array $role): string => $role['code'], $roles),
+        );
+        self::assertSame('Platform Administrator', $roles[3]['name']);
+        self::assertNull($roles[3]['description']);
+    }
+
+    public function testAssignmentsForUserIncludesRoleNameAndOrganisation(): void
+    {
+        $repository = $this->repository();
+        $userId = $this->userId();
+        $organisation = OrganisationId::fromString($this->insertOrganisation('assignment-org-'.bin2hex(random_bytes(4))));
+
+        $repository->assign($userId, RoleIdentifier::fromString(RoleIdentifier::LMS_INSTRUCTOR), $organisation, null, $this->now);
+        $repository->assign($userId, RoleIdentifier::fromString(RoleIdentifier::LMS_LEARNER), null, null, $this->now);
+
+        $assignments = $repository->assignmentsForUser($userId);
+
+        self::assertCount(2, $assignments);
+        self::assertSame('lms:instructor', $assignments[0]['roleCode']);
+        self::assertSame('Instructor', $assignments[0]['roleName']);
+        self::assertSame($organisation->value(), $assignments[0]['organisationId']);
+        self::assertSame($this->now->format(\DATE_ATOM), $assignments[0]['assignedAt']);
+        self::assertSame('lms:learner', $assignments[1]['roleCode']);
+        self::assertNull($assignments[1]['organisationId']);
+    }
+
+    public function testRevokeDeletesOnlyMatchingAssignment(): void
+    {
+        $repository = $this->repository();
+        $userId = $this->userId();
+        $organisation = OrganisationId::fromString($this->insertOrganisation('revoke-org-'.bin2hex(random_bytes(4))));
+        $role = RoleIdentifier::fromString(RoleIdentifier::LMS_INSTRUCTOR);
+
+        $repository->assign($userId, $role, null, null, $this->now);
+        $repository->assign($userId, $role, $organisation, null, $this->now);
+
+        $repository->revoke($userId, $role, $organisation);
+
+        self::assertSame(1, $this->fetchInt(
+            'SELECT COUNT(*) FROM user_roles WHERE user_id = :user_id',
+            ['user_id' => $userId->value()],
+        ));
+        self::assertSame(1, $this->fetchInt(
+            'SELECT COUNT(*) FROM user_roles WHERE user_id = :user_id AND organisation_id IS NULL',
+            ['user_id' => $userId->value()],
+        ));
+
+        $repository->revoke($userId, $role, null);
+
+        self::assertSame(0, $this->fetchInt(
+            'SELECT COUNT(*) FROM user_roles WHERE user_id = :user_id',
+            ['user_id' => $userId->value()],
+        ));
+    }
+
+    public function testCountUsersWithRoleCountsDistinctUsersAndScopes(): void
+    {
+        $repository = $this->repository();
+        $first = $this->userId();
+        $second = $this->userId();
+        $organisation = OrganisationId::fromString($this->insertOrganisation('count-org-'.bin2hex(random_bytes(4))));
+        $role = RoleIdentifier::fromString(RoleIdentifier::LMS_LEARNER);
+
+        self::assertSame(0, $repository->countUsersWithRole($role));
+
+        $repository->assign($first, $role, null, null, $this->now);
+        $repository->assign($first, $role, null, null, $this->now->modify('+1 minute'));
+        $repository->assign($second, $role, null, null, $this->now);
+        $repository->assign($second, $role, $organisation, null, $this->now);
+
+        self::assertSame(2, $repository->countUsersWithRole($role));
+        self::assertSame(1, $repository->countUsersWithRole($role, $organisation));
+        self::assertSame(0, $repository->countUsersWithRole(RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN)));
+    }
+
     private function repository(): DBALRoleRepository
     {
         return new DBALRoleRepository($this->connection(), new SymfonyUidUuidGenerator());

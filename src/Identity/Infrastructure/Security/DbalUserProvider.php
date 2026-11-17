@@ -58,8 +58,9 @@ final readonly class DbalUserProvider implements UserProviderInterface
             throw $this->notFound($user->getUserIdentifier());
         }
 
-        $this->assertCanAuthenticate($reloaded);
-
+        // Refreshing an existing session must not raise account-status errors:
+        // the session subscriber inspects the refreshed domain user and revokes
+        // the session for pending, suspended or deactivated accounts.
         return $this->build($reloaded);
     }
 
