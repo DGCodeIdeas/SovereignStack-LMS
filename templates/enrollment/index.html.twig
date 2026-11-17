@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}My enrollments - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>My enrollments</h1>
+
+    <section class="panel">
+        <h2>Enrollments</h2>
+
+        {% if enrollments is empty %}
+            <p>You are not enrolled in any courses yet.</p>
+        {% else %}
+            <table>
+                <caption>Courses you are enrolled in</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Course</th>
+                        <th scope="col">Version</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Enrolled</th>
+                        <th scope="col">Completed</th>
+                        <th scope="col">Cancelled</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for enrollment in enrollments %}
+                        <tr>
+                            <td>
+                                <a href="{{ path('app_enrollment_show', {enrollmentId: enrollment.id}) }}">
+                                    {{ enrollment.courseTitle }}
+                                </a>
+                            </td>
+                            <td>{{ enrollment.courseVersionId }}</td>
+                            <td>{{ enrollment.status }}</td>
+                            <td>{{ enrollment.enrolledAt }}</td>
+                            <td>{{ enrollment.completedAt ?? '—' }}</td>
+                            <td>{{ enrollment.cancelledAt ?? '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}

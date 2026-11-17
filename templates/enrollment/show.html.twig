@@ -1,0 +1,129 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Enrollment - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>{{ course ? course.title : enrollment.courseId }}</h1>
+
+    <section class="panel">
+        <h2>Enrollment details</h2>
+
+        <dl>
+            <dt>Course</dt>
+            <dd>{{ course ? course.title : enrollment.courseId }}</dd>
+            <dt>Course version</dt>
+            <dd>{{ enrollment.courseVersionId }}</dd>
+            <dt>Status</dt>
+            <dd>{{ enrollment.status }}</dd>
+            <dt>Enrolled</dt>
+            <dd>{{ enrollment.enrolledAt }}</dd>
+            <dt>Completed</dt>
+            <dd>{{ enrollment.completedAt ?? '—' }}</dd>
+            <dt>Cancelled</dt>
+            <dd>{{ enrollment.cancelledAt ?? '—' }}</dd>
+        </dl>
+
+        {% if enrollment.completion is not null %}
+            <p class="tag">
+                Course completion recorded at {{ enrollment.completion.completedAt }}
+            </p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>Lesson progress</h2>
+
+        {% if modules is not empty %}
+            <table>
+                <caption>Module and lesson progress</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Module</th>
+                        <th scope="col">Requirement</th>
+                        <th scope="col">Module status</th>
+                        <th scope="col">Lesson</th>
+                        <th scope="col">Lesson status</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for module in modules %}
+                        {% for lesson in module.lessons %}
+                            <tr>
+                                <td>{{ module.title }}</td>
+                                <td>{{ module.isRequired ? 'Required' : 'Optional' }}</td>
+                                <td>{{ module.status }}</td>
+                                <td>{{ lesson.title }}</td>
+                                <td>{{ lesson.status }}</td>
+                                <td>
+                                    {% if enrollment.status == 'active' %}
+                                        <form method="post" action="{{ path('app_lesson_progress', {enrollmentId: enrollment.id, lessonId: lesson.id}) }}">
+                                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('lesson_progress') }}">
+                                            <button type="submit" name="status" value="in_progress">Mark {{ lesson.title }} in progress</button>
+                                            <button type="submit" name="status" value="completed">Mark {{ lesson.title }} completed</button>
+                                        </form>
+                                    {% else %}
+                                        <span>—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        {% if module.lessons is empty %}
+                            <tr>
+                                <td>{{ module.title }}</td>
+                                <td>{{ module.isRequired ? 'Required' : 'Optional' }}</td>
+                                <td>{{ module.status }}</td>
+                                <td colspan="3">This module has no lessons.</td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% elseif enrollment.lessonProgress is not empty or enrollment.moduleProgress is not empty %}
+            <table>
+                <caption>Recorded progress identifiers</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Kind</th>
+                        <th scope="col">Identifier</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for progress in enrollment.moduleProgress %}
+                        <tr>
+                            <td>Module</td>
+                            <td>{{ progress.courseModuleId }}</td>
+                            <td>{{ progress.status }}</td>
+                        </tr>
+                    {% endfor %}
+                    {% for progress in enrollment.lessonProgress %}
+                        <tr>
+                            <td>Lesson</td>
+                            <td>{{ progress.lessonId }}</td>
+                            <td>{{ progress.status }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No lesson progress has been recorded yet.</p>
+        {% endif %}
+    </section>
+
+    {% if enrollment.status == 'active' %}
+        <section class="panel">
+            <h2>Course actions</h2>
+
+            <form method="post" action="{{ path('app_complete_enrollment', {enrollmentId: enrollment.id}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('complete_enrollment') }}">
+                <button type="submit">Complete course</button>
+            </form>
+
+            <form method="post" action="{{ path('app_cancel_enrollment', {enrollmentId: enrollment.id}) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('cancel_enrollment') }}">
+                <button type="submit">Cancel enrollment</button>
+            </form>
+        </section>
+    {% endif %}
+{% endblock %}

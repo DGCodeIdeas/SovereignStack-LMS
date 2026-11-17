@@ -84,6 +84,7 @@ The complete architecture specification and supporting deliverables are in [`doc
 - [`docs/SHARED-INFRASTRUCTURE.md`](docs/SHARED-INFRASTRUCTURE.md) — Shared infrastructure: transactions, results, problem responses, correlation IDs, file storage
 - [`docs/IDENTITY-ORGANISATION.md`](docs/IDENTITY-ORGANISATION.md) — Identity and organisation: schema, RBAC seed catalogue, authentication, tokens, security, and organisation isolation
 - [`docs/COURSE-CONTENT.md`](docs/COURSE-CONTENT.md) — Course content: schema, lifecycle, version immutability, ordering, authorisation, sanitisation and presentation routes
+- [`docs/ENROLLMENT-LEARNING.md`](docs/ENROLLMENT-LEARNING.md) — Enrollment and learning: schema, version binding, progress rules, completion, outbox writer, isolation and routes
 - [`docs/LOCAL-SERVER.md`](docs/LOCAL-SERVER.md) — Persistent local Apache/systemd toggle, pkexec usage and troubleshooting
 - [`docs/LOCAL-DATABASE-TUNING.md`](docs/LOCAL-DATABASE-TUNING.md) — Local MariaDB baseline, measurements and production-only recommendations
 - [`docs/SPEC-001-v2.1.md`](docs/SPEC-001-v2.1.md) — Complete architecture specification (160 + 3 decisions)

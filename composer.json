@@ -97,7 +97,7 @@
         }
     },
     "scripts": {
-        "test": "phpunit --testsuite unit --testsuite architecture",
+        "test": "phpunit --testsuite unit,architecture",
         "test:unit": "phpunit --testsuite unit",
         "test:architecture": "phpunit --testsuite architecture",
         "test:integration": "phpunit --testsuite integration",
