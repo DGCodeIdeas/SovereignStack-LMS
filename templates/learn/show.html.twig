@@ -1,0 +1,53 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ course.title }} - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <p><a href="{{ path('app_learn_courses') }}">Back to course catalogue</a></p>
+
+    <h1>{{ course.title }}</h1>
+
+    <section class="panel">
+        <h2>Course description</h2>
+
+        {% if course.description is not empty %}
+            <p>{{ course.description }}</p>
+        {% else %}
+            <p>No description is available for this course.</p>
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>Course content</h2>
+
+        {% if course.modules is empty %}
+            <p>This course does not have any modules yet.</p>
+        {% else %}
+            {% for module in course.modules %}
+                <h3>
+                    {{ module.title }}
+                    <span class="tag">{{ module.isRequired ? 'Required' : 'Optional' }}</span>
+                </h3>
+
+                {% if module.lessons is empty %}
+                    <p>This module does not have any lessons yet.</p>
+                {% else %}
+                    <ul>
+                        {% for lesson in module.lessons %}
+                            <li>{{ lesson.title }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </section>
+
+    <section class="panel">
+        <h2>Enroll</h2>
+
+        <form method="post" action="{{ path('app_enroll_course', {courseId: course.courseId}) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('enroll_course') }}">
+            <button type="submit" class="button">Enroll in this course</button>
+        </form>
+    </section>
+{% endblock %}

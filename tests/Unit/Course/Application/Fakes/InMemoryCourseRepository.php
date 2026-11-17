@@ -20,6 +20,19 @@ final class InMemoryCourseRepository implements CourseRepositoryInterface
 
     public int $publishedVersionClears = 0;
 
+    /**
+     * @var list<array{
+     *     id: string,
+     *     slug: string,
+     *     title: string,
+     *     description: null|string,
+     *     organisationId: string,
+     *     visibility: string,
+     *     moduleCount: int
+     * }>
+     */
+    public array $learnerCourses = [];
+
     public function save(Course $course): void
     {
         $this->courses[$course->id()->value()] = $course;
@@ -54,6 +67,11 @@ final class InMemoryCourseRepository implements CourseRepositoryInterface
         usort($result, static fn (Course $left, Course $right): int => $left->slug() <=> $right->slug());
 
         return $result;
+    }
+
+    public function listPublishedForLearner(array $organisationIds): array
+    {
+        return $this->learnerCourses;
     }
 
     public function updatePublishedVersion(Course $course): void

@@ -61,7 +61,7 @@ final class IdentitySchemaTest extends DatabaseIntegrationTestCase
     public function testRolesAndPermissionsAreSeeded(): void
     {
         self::assertSame(4, $this->fetchInt('SELECT COUNT(*) FROM roles'));
-        self::assertSame(19, $this->fetchInt('SELECT COUNT(*) FROM permissions'));
+        self::assertSame(20, $this->fetchInt('SELECT COUNT(*) FROM permissions'));
     }
 
     public function testRoleCodesAndNamesMatchSeed(): void
@@ -98,11 +98,36 @@ final class IdentitySchemaTest extends DatabaseIntegrationTestCase
         }
 
         self::assertSame([
-            'lms:admin' => 19,
-            'lms:instructor' => 9,
-            'lms:learner' => 6,
-            'platform:admin' => 19,
+            'lms:admin' => 20,
+            'lms:instructor' => 10,
+            'lms:learner' => 7,
+            'platform:admin' => 20,
         ], $counts);
+    }
+
+    public function testCourseViewPermissionIsSeededAndMappedToEveryRole(): void
+    {
+        self::assertSame(
+            '01900000-0000-7001-8000-000000000020',
+            $this->fetchString("SELECT id FROM permissions WHERE code = 'course.view'"),
+        );
+
+        $rows = $this->connection()->fetchAllAssociative(
+            'SELECT r.code AS role_code
+             FROM role_permissions rp
+             INNER JOIN roles r ON r.id = rp.role_id
+             INNER JOIN permissions p ON p.id = rp.permission_id
+             WHERE p.code = :code
+             ORDER BY r.code',
+            ['code' => 'course.view'],
+        );
+
+        $roleCodes = array_map(
+            fn (array $row): string => $this->rowString($row, 'role_code'),
+            $rows,
+        );
+
+        self::assertSame(['lms:admin', 'lms:instructor', 'lms:learner', 'platform:admin'], $roleCodes);
     }
 
     public function testForeignKeysExist(): void

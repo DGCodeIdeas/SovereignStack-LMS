@@ -54,7 +54,8 @@ final class RoleRepositoryTest extends DatabaseIntegrationTestCase
         $permissions = $repository->permissionsForUser($userId);
 
         self::assertSame(['lms:learner'], array_map(static fn (RoleIdentifier $role): string => $role->value(), $roles));
-        self::assertCount(6, $permissions);
+        self::assertCount(7, $permissions);
+        self::assertContains(PermissionCode::COURSE_VIEW, array_map(static fn (PermissionCode $code): string => $code->value(), $permissions));
         self::assertContains(PermissionCode::ENROLLMENT_CREATE, array_map(static fn (PermissionCode $code): string => $code->value(), $permissions));
         self::assertContains(PermissionCode::FILE_DOWNLOAD, array_map(static fn (PermissionCode $code): string => $code->value(), $permissions));
     }

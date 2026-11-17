@@ -225,3 +225,22 @@ h2 {
     font-size: 0.85rem;
     padding: 0.15rem 0.6rem;
 }
+
+.lesson-content {
+    margin-top: 0.5rem;
+    max-width: 60ch;
+    overflow-wrap: anywhere;
+}
+
+.lesson-content > :first-child {
+    margin-top: 0;
+}
+
+.lesson-content > :last-child {
+    margin-bottom: 0;
+}
+
+.muted {
+    color: var(--muted);
+    margin: 0.5rem 0 0;
+}

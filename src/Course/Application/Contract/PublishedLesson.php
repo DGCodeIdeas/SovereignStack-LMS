@@ -9,5 +9,6 @@ final readonly class PublishedLesson
     public function __construct(
         public string $id,
         public string $title,
+        public string $contentHtml = '',
     ) {}
 }

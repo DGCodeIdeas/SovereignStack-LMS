@@ -51,7 +51,7 @@ final class EnrollmentController extends AbstractController
         $enrollments = ($this->listEnrollments)(new ListEnrollmentsQuery($this->actorId()));
 
         foreach ($enrollments as $index => $enrollment) {
-            $course = $this->courseContent($enrollment['courseId']);
+            $course = $this->courseContent($enrollment['courseId'], $enrollment['courseVersionId']);
             $enrollments[$index]['courseTitle'] = null === $course ? $enrollment['courseId'] : $course->title;
         }
 
@@ -77,7 +77,7 @@ final class EnrollmentController extends AbstractController
         try {
             $enrollmentId = ($this->enroll)(new EnrollCommand($actorId, $actorId, $courseId));
         } catch (\Throwable $exception) {
-            return $this->failure($exception, 'app_courses');
+            return $this->failure($exception, 'app_learn_course', ['courseId' => $courseId]);
         }
 
         $this->addFlash('success', 'You are enrolled in this course.');
@@ -111,11 +111,7 @@ final class EnrollmentController extends AbstractController
             $modulesProgress[$progress['courseModuleId']] = $progress;
         }
 
-        $course = $this->courseContent($enrollment['courseId']);
-
-        if (null !== $course && $course->versionId !== $enrollment['courseVersionId']) {
-            $course = null;
-        }
+        $course = $this->courseContent($enrollment['courseId'], $enrollment['courseVersionId']);
 
         return $this->render('enrollment/show.html.twig', [
             'enrollment' => $enrollment,
@@ -212,9 +208,9 @@ final class EnrollmentController extends AbstractController
         return $user->domainUserId();
     }
 
-    private function courseContent(string $courseId): ?EnrollmentCourseView
+    private function courseContent(string $courseId, string $versionId): ?EnrollmentCourseView
     {
-        return $this->content->forCourse($courseId);
+        return $this->content->forVersion($courseId, $versionId);
     }
 
     /**
@@ -226,7 +222,7 @@ final class EnrollmentController extends AbstractController
      *     title: string,
      *     isRequired: bool,
      *     status: string,
-     *     lessons: list<array{id: string, title: string, status: string}>
+     *     lessons: list<array{id: string, title: string, contentHtml: string, status: string}>
      * }>
      */
     private function progressRows(?EnrollmentCourseView $course, array $modulesProgress, array $lessons): array
@@ -247,6 +243,7 @@ final class EnrollmentController extends AbstractController
                 $lessonRows[] = [
                     'id' => $lesson['id'],
                     'title' => $lesson['title'],
+                    'contentHtml' => $lesson['contentHtml'],
                     'status' => $lessonRow['status'] ?? 'not_started',
                 ];
             }

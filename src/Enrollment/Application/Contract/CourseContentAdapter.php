@@ -24,6 +24,11 @@ final readonly class CourseContentAdapter implements EnrollmentCourseContentInte
         return $this->content->publishedVersionForCourse($courseId);
     }
 
+    public function versionContent(string $versionId): ?PublishedCourseVersion
+    {
+        return $this->content->versionContent($versionId);
+    }
+
     public function lessonBelongsToVersion(string $lessonId, string $versionId): bool
     {
         return $this->content->lessonBelongsToVersion($lessonId, $versionId);
@@ -32,6 +37,19 @@ final readonly class CourseContentAdapter implements EnrollmentCourseContentInte
     public function moduleIdForLesson(string $lessonId, string $versionId): ?string
     {
         return $this->content->moduleIdForLesson($lessonId, $versionId);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function lessonIdsForModule(string $versionId, string $moduleId): array
+    {
+        return $this->content->lessonIdsForModule($versionId, $moduleId);
+    }
+
+    public function versionLessonContent(string $versionId, string $lessonId): ?string
+    {
+        return $this->content->versionLessonContent($versionId, $lessonId);
     }
 
     /**

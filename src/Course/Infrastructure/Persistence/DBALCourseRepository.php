@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SovereignStack\Lms\Course\Infrastructure\Persistence;
 
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Connection;
 use SovereignStack\Lms\Course\Domain\Entity\Course;
 use SovereignStack\Lms\Course\Domain\Enum\CourseVisibility;
@@ -73,6 +74,53 @@ final readonly class DBALCourseRepository implements CourseRepositoryInterface
         );
 
         return array_map(fn (array $row): Course => $this->hydrate($row), $rows);
+    }
+
+    public function listPublishedForLearner(array $organisationIds): array
+    {
+        $sql = 'SELECT c.id,
+                       c.slug,
+                       c.organisation_id,
+                       c.visibility,
+                       v.title,
+                       v.description,
+                       (SELECT COUNT(*)
+                        FROM course_modules m
+                        WHERE m.course_version_id = c.current_published_version_id) AS module_count
+                FROM courses c
+                INNER JOIN course_versions v
+                    ON v.id = c.current_published_version_id
+                   AND v.course_id = c.id
+                WHERE c.current_published_version_id IS NOT NULL
+                  AND c.visibility IN (\'public\', \'organisation_only\')';
+
+        $params = [];
+        $types = [];
+
+        if ([] !== $organisationIds) {
+            $sql .= ' AND (c.visibility = \'public\' OR c.organisation_id IN (:organisation_ids))';
+            $params['organisation_ids'] = array_values($organisationIds);
+            $types['organisation_ids'] = ArrayParameterType::STRING;
+        } else {
+            $sql .= ' AND c.visibility = \'public\'';
+        }
+
+        $sql .= ' ORDER BY v.title, c.slug';
+
+        $rows = $this->connection->fetchAllAssociative($sql, $params, $types);
+
+        return array_map(
+            static fn (array $row): array => [
+                'id' => DatabaseValue::string($row, 'id'),
+                'slug' => DatabaseValue::string($row, 'slug'),
+                'title' => DatabaseValue::string($row, 'title'),
+                'description' => DatabaseValue::nullableString($row, 'description'),
+                'organisationId' => DatabaseValue::string($row, 'organisation_id'),
+                'visibility' => DatabaseValue::string($row, 'visibility'),
+                'moduleCount' => DatabaseValue::int($row, 'module_count'),
+            ],
+            $rows,
+        );
     }
 
     public function updatePublishedVersion(Course $course): void

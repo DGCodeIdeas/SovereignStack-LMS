@@ -10,6 +10,7 @@ final readonly class PermissionCode
     public const COURSE_UPDATE = 'course.update';
     public const COURSE_PUBLISH = 'course.publish';
     public const COURSE_ARCHIVE = 'course.archive';
+    public const COURSE_VIEW = 'course.view';
     public const ENROLLMENT_CREATE = 'enrollment.create';
     public const ENROLLMENT_CANCEL_SELF = 'enrollment.cancel.self';
     public const ENROLLMENT_CANCEL_OTHER = 'enrollment.cancel.other';
