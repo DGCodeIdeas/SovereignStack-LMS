@@ -28,6 +28,10 @@ final class SuspendUserController extends AbstractController
             return new Response('Invalid CSRF token.', Response::HTTP_BAD_REQUEST);
         }
 
+        if ($securityUser->getDomainUser()->id()->value() === strtolower(trim($id))) {
+            return new Response('You cannot suspend your own account.', Response::HTTP_BAD_REQUEST);
+        }
+
         try {
             $handler(new SuspendUserCommand($securityUser->getDomainUser()->id()->value(), $id));
         } catch (ForbiddenException) {
@@ -35,6 +39,10 @@ final class SuspendUserController extends AbstractController
         }
 
         $this->addFlash('success', 'The user account has been suspended.');
+
+        if ($this->isGranted('ROLE_PLATFORM_ADMIN')) {
+            return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
+        }
 
         return $this->redirectToRoute('app_account');
     }

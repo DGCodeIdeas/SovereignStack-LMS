@@ -1,0 +1,49 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Users — SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <h1>User administration</h1>
+
+        <form method="get" action="{{ path('app_admin_users') }}" class="form">
+            <div class="form-field">
+                <label for="q">Search by email or display name</label>
+                <input id="q" name="q" type="search" value="{{ query }}" maxlength="255">
+            </div>
+            <button type="submit" class="button">Search</button>
+        </form>
+
+        <p>{{ total }} user{{ total == 1 ? '' : 's' }} found.</p>
+
+        <table>
+            <caption>User accounts</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Email</th>
+                    <th scope="col">Display name</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Created</th>
+                    <th scope="col">Last login</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td>{{ user.email }}</td>
+                        <td>{{ user.displayName is not empty ? user.displayName : '—' }}</td>
+                        <td>{{ user.status }}</td>
+                        <td>{{ user.createdAt }}</td>
+                        <td>{{ user.lastLoginAt ?? '—' }}</td>
+                        <td><a href="{{ path('app_admin_user_show', {id: user.id}) }}">Open</a></td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="6">No users found.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+{% endblock %}

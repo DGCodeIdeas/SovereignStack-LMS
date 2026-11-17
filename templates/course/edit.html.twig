@@ -69,6 +69,53 @@
     </section>
 
     <section class="panel">
+        <h2>Instructors</h2>
+
+        <table>
+            <caption>Assigned instructors</caption>
+            <thead>
+                <tr>
+                    <th scope="col">User</th>
+                    <th scope="col">Effective from</th>
+                    <th scope="col">Effective until</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for instructor in instructors %}
+                    <tr>
+                        <td>{{ instructor.userId.value }}</td>
+                        <td>{{ instructor.effectiveFrom|date('c') }}</td>
+                        <td>{{ instructor.effectiveUntil ? instructor.effectiveUntil|date('c') : 'Open' }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="3">No instructors assigned.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="post" action="{{ path('app_course_instructor_assign', {courseId: course.id}) }}" class="form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('assign_instructor') }}">
+
+            <div class="form-field">
+                <label for="instructor-user-id">Instructor user ID</label>
+                <input id="instructor-user-id" name="instructor_user_id" type="text" maxlength="36" required>
+            </div>
+
+            <div class="form-field">
+                <label for="effective-from">Effective from</label>
+                <input id="effective-from" name="effective_from" type="datetime-local">
+            </div>
+
+            <div class="form-field">
+                <label for="effective-until">Effective until (optional)</label>
+                <input id="effective-until" name="effective_until" type="datetime-local">
+            </div>
+
+            <button type="submit" class="button">Assign instructor</button>
+        </form>
+    </section>
+
+    <section class="panel">
         <h2>Lifecycle</h2>
         <p>Submit a draft for review, then publish, archive or start a new draft from a published version.</p>
 

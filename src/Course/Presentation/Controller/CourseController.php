@@ -7,6 +7,7 @@ namespace SovereignStack\Lms\Course\Presentation\Controller;
 use SovereignStack\Lms\Course\Application\Command\AddLessonCommand;
 use SovereignStack\Lms\Course\Application\Command\AddModuleCommand;
 use SovereignStack\Lms\Course\Application\Command\ArchiveCourseCommand;
+use SovereignStack\Lms\Course\Application\Command\AssignInstructorCommand;
 use SovereignStack\Lms\Course\Application\Command\CreateCourseCommand;
 use SovereignStack\Lms\Course\Application\Command\CreateDraftVersionCommand;
 use SovereignStack\Lms\Course\Application\Command\PublishCourseCommand;
@@ -22,6 +23,7 @@ use SovereignStack\Lms\Course\Application\Contract\UserOrganisationsInterface;
 use SovereignStack\Lms\Course\Application\Handler\AddLessonHandler;
 use SovereignStack\Lms\Course\Application\Handler\AddModuleHandler;
 use SovereignStack\Lms\Course\Application\Handler\ArchiveCourseHandler;
+use SovereignStack\Lms\Course\Application\Handler\AssignInstructorHandler;
 use SovereignStack\Lms\Course\Application\Handler\CreateCourseHandler;
 use SovereignStack\Lms\Course\Application\Handler\CreateDraftVersionHandler;
 use SovereignStack\Lms\Course\Application\Handler\GetCourseHandler;
@@ -37,6 +39,8 @@ use SovereignStack\Lms\Course\Application\Handler\SubmitForReviewHandler;
 use SovereignStack\Lms\Course\Application\Handler\UpdateCourseHandler;
 use SovereignStack\Lms\Course\Application\Query\GetCourseQuery;
 use SovereignStack\Lms\Course\Application\Query\ListCoursesQuery;
+use SovereignStack\Lms\Course\Domain\Repository\CourseInstructorRepositoryInterface;
+use SovereignStack\Lms\Course\Domain\ValueObject\CourseId;
 use SovereignStack\Lms\Shared\Application\Exception\ConflictException;
 use SovereignStack\Lms\Shared\Application\Exception\ForbiddenException;
 use SovereignStack\Lms\Shared\Application\Exception\NotFoundException;
@@ -72,6 +76,8 @@ final class CourseController extends AbstractController
         private readonly PublishCourseHandler $publishCourse,
         private readonly ArchiveCourseHandler $archiveCourse,
         private readonly CreateDraftVersionHandler $createDraftVersion,
+        private readonly AssignInstructorHandler $assignInstructor,
+        private readonly CourseInstructorRepositoryInterface $instructors,
     ) {}
 
     #[Route('/courses', name: 'app_courses', methods: ['GET'])]
@@ -158,6 +164,7 @@ final class CourseController extends AbstractController
             'course' => $course,
             'moduleMoveIds' => $moduleMoveIds,
             'lessonMoveIds' => $lessonMoveIds,
+            'instructors' => $this->instructors->listByCourse(CourseId::fromString($courseId)),
         ]);
     }
 
@@ -493,6 +500,35 @@ final class CourseController extends AbstractController
         }
 
         $this->addFlash('success', 'New draft version created.');
+
+        return $this->redirectToRoute('app_course_edit', ['courseId' => $courseId]);
+    }
+
+    #[Route(
+        '/courses/{courseId}/instructors',
+        name: 'app_course_instructor_assign',
+        methods: ['POST'],
+        requirements: ['courseId' => self::COURSE_ID_REQUIREMENT],
+    )]
+    public function assignInstructor(Request $request, string $courseId): Response
+    {
+        if (null !== $invalid = $this->invalidCsrf($request, 'assign_instructor')) {
+            return $invalid;
+        }
+
+        try {
+            ($this->assignInstructor)(new AssignInstructorCommand(
+                $this->actorId(),
+                $courseId,
+                $request->request->getString('instructor_user_id'),
+                $request->request->getString('effective_from') ?: 'now',
+                $request->request->getString('effective_until') ?: null,
+            ));
+        } catch (\Throwable $exception) {
+            return $this->failure($exception, 'app_course_edit', ['courseId' => $courseId]);
+        }
+
+        $this->addFlash('success', 'Instructor assigned.');
 
         return $this->redirectToRoute('app_course_edit', ['courseId' => $courseId]);
     }
