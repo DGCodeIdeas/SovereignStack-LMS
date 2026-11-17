@@ -74,11 +74,68 @@ services:
     SovereignStack\Lms\Course\Domain\Repository\CourseInstructorRepositoryInterface:
         alias: SovereignStack\Lms\Course\Infrastructure\Persistence\DBALCourseInstructorRepository
 
+    SovereignStack\Lms\Enrollment\Domain\Repository\EnrollmentRepositoryInterface:
+        alias: SovereignStack\Lms\Enrollment\Infrastructure\Persistence\DBALEnrollmentRepository
+
+    SovereignStack\Lms\Enrollment\Domain\Repository\CourseCompletionRepositoryInterface:
+        alias: SovereignStack\Lms\Enrollment\Infrastructure\Persistence\DBALCourseCompletionRepository
+
+    SovereignStack\Lms\Enrollment\Application\Contract\EnrollmentCourseContentInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\CourseContentAdapter
+
+    SovereignStack\Lms\Enrollment\Application\Contract\EnrollmentCourseViewProviderInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\EnrollmentCourseViewProvider
+
+    SovereignStack\Lms\Enrollment\Application\Contract\MembershipInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\MembershipCheckerAdapter
+
+    SovereignStack\Lms\Enrollment\Application\Contract\LearningProgressInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\LearningProgressAdapter
+
+    SovereignStack\Lms\Enrollment\Application\Contract\LessonProgressRecorderInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\LessonProgressRecorderAdapter
+
+    SovereignStack\Lms\Enrollment\Application\Contract\ProgressStatusInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\ProgressStatusAdapter
+
+    SovereignStack\Lms\Enrollment\Application\Contract\CompletionErrorsInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\CompletionErrorsAdapter
+
+    SovereignStack\Lms\Enrollment\Application\Contract\PermissionCheckerInterface:
+        alias: SovereignStack\Lms\Enrollment\Application\Contract\PermissionCheckerAdapter
+
+    SovereignStack\Lms\Learning\Domain\Repository\LessonProgressRepositoryInterface:
+        alias: SovereignStack\Lms\Learning\Infrastructure\Persistence\DBALLessonProgressRepository
+
+    SovereignStack\Lms\Learning\Domain\Repository\ModuleProgressRepositoryInterface:
+        alias: SovereignStack\Lms\Learning\Infrastructure\Persistence\DBALModuleProgressRepository
+
+    SovereignStack\Lms\Learning\Application\Contract\RequiredModulesInterface:
+        alias: SovereignStack\Lms\Learning\Application\Contract\RequiredModulesAdapter
+
+    SovereignStack\Lms\Learning\Application\Contract\ProgressInterface:
+        alias: SovereignStack\Lms\Learning\Application\Progress
+
+    SovereignStack\Lms\Learning\Application\Contract\LessonProgressRecorderInterface:
+        alias: SovereignStack\Lms\Learning\Application\LessonProgressRecorder
+
+    SovereignStack\Lms\Learning\Application\Contract\LearningProgressInterface:
+        alias: SovereignStack\Lms\Learning\Infrastructure\LearningProgress
+
     SovereignStack\Lms\Course\Application\Contract\HtmlSanitizerInterface:
         alias: SovereignStack\Lms\Course\Infrastructure\Security\SymfonyHtmlSanitizer
 
     SovereignStack\Lms\Course\Application\Contract\PermissionCheckerInterface:
         alias: SovereignStack\Lms\Course\Application\Contract\PermissionCheckerAdapter
+
+    SovereignStack\Lms\Course\Application\Contract\CourseContentProviderInterface:
+        alias: SovereignStack\Lms\Course\Infrastructure\CourseContentProvider
+
+    SovereignStack\Lms\Organisation\Application\Contract\MembershipCheckerInterface:
+        alias: SovereignStack\Lms\Organisation\Application\MembershipChecker
+
+    SovereignStack\Lms\Shared\Application\Outbox\OutboxWriterInterface:
+        alias: SovereignStack\Lms\Shared\Infrastructure\Outbox\DbalOutboxWriter
 
     SovereignStack\Lms\Course\Infrastructure\Security\SymfonyHtmlSanitizer:
         arguments:
