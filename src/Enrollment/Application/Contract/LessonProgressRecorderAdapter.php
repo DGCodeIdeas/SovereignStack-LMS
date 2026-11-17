@@ -23,6 +23,7 @@ final readonly class LessonProgressRecorderAdapter implements LessonProgressReco
         string $target,
         string $organisationId,
         string $moduleId,
+        array $moduleLessonIds,
         \DateTimeImmutable $now,
     ): void {
         $this->recorder->recordLessonProgress(
@@ -32,6 +33,7 @@ final readonly class LessonProgressRecorderAdapter implements LessonProgressReco
             $target,
             $organisationId,
             $moduleId,
+            $moduleLessonIds,
             $now,
         );
     }

@@ -41,6 +41,58 @@ final class EnrollHandlerTest extends ApplicationTestCase
         self::assertTrue($this->outbox->hasEvent('EnrollmentCreated'));
     }
 
+    public function testPublicCourseEnrollmentDoesNotRequireOrganisationMembership(): void
+    {
+        $this->publishCourse(
+            [$this->module(self::MODULE_ID, 'Module', true, [$this->lesson(self::LESSON_ID)])],
+            visibility: 'public',
+        );
+        $this->memberships = new FakeMembershipChecker([]);
+
+        $enrollmentId = ($this->enrollHandler())(new EnrollCommand(
+            self::LEARNER_ID,
+            self::LEARNER_ID,
+            self::COURSE_ID,
+        ));
+
+        self::assertSame(self::LEARNER_ID, $this->enrollments->findById($enrollmentId)?->learnerUserId()->value());
+    }
+
+    public function testRestrictedCourseEnrollmentIsDeniedForLearners(): void
+    {
+        $this->publishCourse(
+            [$this->module(self::MODULE_ID, 'Module', true, [$this->lesson(self::LESSON_ID)])],
+            visibility: 'restricted',
+        );
+        $this->memberships = new FakeMembershipChecker([self::LEARNER_ID]);
+        $this->setPermissions(new FakePermissionChecker(['enrollment.view.any']));
+
+        $this->expectException(ForbiddenException::class);
+
+        ($this->enrollHandler())(new EnrollCommand(
+            self::LEARNER_ID,
+            self::LEARNER_ID,
+            self::COURSE_ID,
+        ));
+    }
+
+    public function testRestrictedCourseEnrollmentIsAllowedForManagersWithMembership(): void
+    {
+        $this->publishCourse(
+            [$this->module(self::MODULE_ID, 'Module', true, [$this->lesson(self::LESSON_ID)])],
+            visibility: 'restricted',
+        );
+        $this->memberships = new FakeMembershipChecker([self::LEARNER_ID]);
+
+        $enrollmentId = ($this->enrollHandler())(new EnrollCommand(
+            self::MANAGER_ID,
+            self::LEARNER_ID,
+            self::COURSE_ID,
+        ));
+
+        self::assertSame(self::LEARNER_ID, $this->enrollments->findById($enrollmentId)?->learnerUserId()->value());
+    }
+
     public function testDuplicateActiveEnrollmentIsRejected(): void
     {
         $this->publishedCourse();

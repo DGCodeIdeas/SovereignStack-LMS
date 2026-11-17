@@ -53,7 +53,15 @@
                                 <td>{{ module.title }}</td>
                                 <td>{{ module.isRequired ? 'Required' : 'Optional' }}</td>
                                 <td>{{ module.status }}</td>
-                                <td>{{ lesson.title }}</td>
+                                <td>
+                                    <strong>{{ lesson.title }}</strong>
+                                    {% if lesson.contentHtml is not empty %}
+                                        {# contentHtml is sanitised in the course read model before it reaches this view. #}
+                                        <div class="lesson-content">{{ lesson.contentHtml|raw }}</div>
+                                    {% else %}
+                                        <p class="muted">No content has been published for this lesson yet.</p>
+                                    {% endif %}
+                                </td>
                                 <td>{{ lesson.status }}</td>
                                 <td>
                                     {% if enrollment.status == 'active' %}

@@ -48,8 +48,20 @@ final readonly class EnrollHandler
         $this->policy->requireCreate($command->actorUserId, $command->learnerUserId, $version->organisationId);
 
         $actorIsAdmin = $this->policy->isAdmin($command->actorUserId, $version->organisationId);
+        $actorIsManager = $this->policy->isManager($command->actorUserId, $version->organisationId);
+        $visibility = $version->visibility;
 
-        if (!$actorIsAdmin && !$this->memberships->isActiveMember($command->learnerUserId, $version->organisationId)) {
+        if ('restricted' === $visibility && !$actorIsManager) {
+            throw new ForbiddenException('Only staff can enroll in this restricted course.');
+        }
+
+        if ('archived' === $visibility) {
+            throw CourseNotPublishedException::forCourse($command->courseId);
+        }
+
+        if ('public' !== $visibility
+            && !$actorIsAdmin
+            && !$this->memberships->isActiveMember($command->learnerUserId, $version->organisationId)) {
             throw new ForbiddenException('The learner must be an active member of the organisation to enroll.');
         }
 

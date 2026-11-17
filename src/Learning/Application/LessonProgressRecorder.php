@@ -24,6 +24,9 @@ final readonly class LessonProgressRecorder implements LessonProgressRecorderInt
         private UuidGeneratorInterface $uuid,
     ) {}
 
+    /**
+     * @param list<string> $moduleLessonIds
+     */
     public function recordLessonProgress(
         string $actorUserId,
         string $enrollmentId,
@@ -31,6 +34,7 @@ final readonly class LessonProgressRecorder implements LessonProgressRecorderInt
         string $target,
         string $organisationId,
         string $moduleId,
+        array $moduleLessonIds,
         \DateTimeImmutable $now,
     ): void {
         $progress = $this->lessons->findByEnrollmentAndLesson($enrollmentId, $lessonId);
@@ -69,84 +73,87 @@ final readonly class LessonProgressRecorder implements LessonProgressRecorderInt
             ],
         );
 
-        $this->refreshModuleProgress($enrollmentId, $moduleId, $now);
+        $this->refreshModuleProgress($enrollmentId, $moduleId, $moduleLessonIds, $now);
     }
 
-    private function refreshModuleProgress(string $enrollmentId, string $moduleId, \DateTimeImmutable $now): void
-    {
-        $lessons = $this->lessons->listByEnrollmentAndModule($enrollmentId, $moduleId);
+    /**
+     * @param list<string> $moduleLessonIds
+     */
+    private function refreshModuleProgress(
+        string $enrollmentId,
+        string $moduleId,
+        array $moduleLessonIds,
+        \DateTimeImmutable $now,
+    ): void {
+        // A module with no lessons can never be completed. It also has no
+        // lesson progress to aggregate, so leave it without progress rows.
+        if ([] === $moduleLessonIds) {
+            return;
+        }
+
+        $recorded = [];
+
+        foreach ($this->lessons->listByEnrollmentAndModule($enrollmentId, $moduleId) as $lesson) {
+            $recorded[$lesson->lessonId()] = $lesson->status();
+        }
+
+        $allCompleted = true;
+        $anyStarted = false;
+
+        foreach ($moduleLessonIds as $moduleLessonId) {
+            $status = $recorded[$moduleLessonId] ?? null;
+
+            if (ProgressStatus::COMPLETED !== $status) {
+                $allCompleted = false;
+            }
+
+            if (ProgressStatus::IN_PROGRESS === $status || ProgressStatus::COMPLETED === $status) {
+                $anyStarted = true;
+            }
+        }
 
         $module = $this->modules->findByEnrollmentAndModule($enrollmentId, $moduleId);
 
-        if (null === $module) {
-            if ([] === $lessons) {
+        if ($allCompleted) {
+            if (null === $module) {
+                $module = ModuleProgress::create(
+                    ModuleProgressId::fromString($this->uuid->generate()),
+                    $enrollmentId,
+                    $moduleId,
+                    $now,
+                );
+            } elseif (ProgressStatus::COMPLETED === $module->status()) {
                 return;
             }
 
+            $module->markCompleted($now);
+            $this->modules->save($module);
+
+            return;
+        }
+
+        if (!$anyStarted) {
+            return;
+        }
+
+        if (null === $module) {
             $module = ModuleProgress::create(
                 ModuleProgressId::fromString($this->uuid->generate()),
                 $enrollmentId,
                 $moduleId,
                 $now,
             );
-
-            if (self::allCompleted($lessons)) {
-                $module->markCompleted($now);
-            } elseif (self::anyStarted($lessons)) {
-                $module->markStarted($now);
-            } else {
-                return;
-            }
-
+            $module->markStarted($now);
             $this->modules->save($module);
 
             return;
         }
 
-        if (self::allCompleted($lessons)) {
-            if (ProgressStatus::COMPLETED === $module->status()) {
-                return;
-            }
-
-            $module->markCompleted($now);
-        } elseif (self::anyStarted($lessons) && ProgressStatus::NOT_STARTED === $module->status()) {
-            $module->markStarted($now);
-        } else {
+        if (ProgressStatus::NOT_STARTED !== $module->status()) {
             return;
         }
 
+        $module->markStarted($now);
         $this->modules->save($module);
-    }
-
-    /**
-     * @param list<LessonProgress> $lessons
-     */
-    private static function allCompleted(array $lessons): bool
-    {
-        if ([] === $lessons) {
-            return false;
-        }
-
-        foreach ($lessons as $lesson) {
-            if (ProgressStatus::COMPLETED !== $lesson->status()) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * @param list<LessonProgress> $lessons
-     */
-    private static function anyStarted(array $lessons): bool
-    {
-        foreach ($lessons as $lesson) {
-            if (ProgressStatus::IN_PROGRESS === $lesson->status() || ProgressStatus::COMPLETED === $lesson->status()) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

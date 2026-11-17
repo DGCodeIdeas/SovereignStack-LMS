@@ -131,6 +131,9 @@ services:
     SovereignStack\Lms\Course\Application\Contract\CourseContentProviderInterface:
         alias: SovereignStack\Lms\Course\Infrastructure\CourseContentProvider
 
+    SovereignStack\Lms\Course\Application\Contract\LearnerCourseCatalogInterface:
+        alias: SovereignStack\Lms\Course\Application\Service\LearnerCourseCatalog
+
     SovereignStack\Lms\Organisation\Application\Contract\MembershipCheckerInterface:
         alias: SovereignStack\Lms\Organisation\Application\MembershipChecker
 

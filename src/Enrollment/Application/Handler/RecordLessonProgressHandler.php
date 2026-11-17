@@ -58,6 +58,7 @@ final readonly class RecordLessonProgressHandler
                         $target,
                         $enrollment->organisationId()->value(),
                         $moduleId,
+                        $this->content->lessonIdsForModule($enrollment->courseVersionId(), $moduleId),
                         $this->clock->now(),
                     );
                 });

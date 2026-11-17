@@ -97,8 +97,18 @@ abstract class ApplicationTestCase extends TestCase
         array $modules,
         string $courseId = self::COURSE_ID,
         string $versionId = self::VERSION_ID,
+        string $visibility = 'organisation_only',
+        ?string $description = null,
     ): PublishedCourseVersion {
-        return $this->content->publish($courseId, $versionId, self::ORGANISATION_ID, 'Course', $modules);
+        return $this->content->publish(
+            $courseId,
+            $versionId,
+            self::ORGANISATION_ID,
+            'Course',
+            $modules,
+            $visibility,
+            $description,
+        );
     }
 
     /**

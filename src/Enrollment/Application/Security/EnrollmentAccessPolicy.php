@@ -68,6 +68,11 @@ final readonly class EnrollmentAccessPolicy
         return $this->permissions->can($actor, self::USER_MANAGE_PERMISSION, $organisationId);
     }
 
+    public function isManager(string $actor, string $organisationId): bool
+    {
+        return $this->permissions->can($actor, self::VIEW_ANY_PERMISSION, $organisationId);
+    }
+
     private function isLearner(string $actor, Enrollment $enrollment): bool
     {
         return $this->isSelf($actor, $enrollment->learnerUserId()->value());

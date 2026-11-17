@@ -6,8 +6,8 @@ namespace SovereignStack\Lms\Enrollment\Application\Contract;
 
 /**
  * Presentation-safe view of the published course version a learner is bound
- * to. It exposes only identifiers and titles, never authoring metadata or
- * lesson bodies.
+ * to. It exposes only identifiers, titles and the already-sanitised lesson
+ * bodies, never authoring metadata or storage locations.
  */
 final readonly class EnrollmentCourseView
 {
@@ -16,7 +16,7 @@ final readonly class EnrollmentCourseView
      *     id: string,
      *     title: string,
      *     isRequired: bool,
-     *     lessons: list<array{id: string, title: string}>
+     *     lessons: list<array{id: string, title: string, contentHtml: string}>
      * }>
      */
     public array $modules;
@@ -26,7 +26,7 @@ final readonly class EnrollmentCourseView
      *     id: string,
      *     title: string,
      *     isRequired: bool,
-     *     lessons: list<array{id: string, title: string}>
+     *     lessons: list<array{id: string, title: string, contentHtml: string}>
      * }> $modules
      */
     public function __construct(

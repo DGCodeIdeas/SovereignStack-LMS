@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Course catalogue - SovereignStack LMS{% endblock %}
+
+{% block body %}
+    <h1>Course catalogue</h1>
+
+    <section class="panel">
+        <h2>Available courses</h2>
+
+        {% if courses is empty %}
+            <p>No published courses are available to you yet.</p>
+        {% else %}
+            <table>
+                <caption>Published courses you can browse and enroll in</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Course</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Organisation</th>
+                        <th scope="col">Modules</th>
+                        <th scope="col">Enroll</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                        <tr>
+                            <td>
+                                <a href="{{ path('app_learn_course', {courseId: course.id}) }}">{{ course.title }}</a>
+                            </td>
+                            <td>{{ course.description ?? '—' }}</td>
+                            <td>{{ organisationNames[course.organisationId] ?? course.organisationId }}</td>
+                            <td>{{ course.moduleCount }}</td>
+                            <td>
+                                <form method="post" action="{{ path('app_enroll_course', {courseId: course.id}) }}">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('enroll_course') }}">
+                                    <button type="submit" aria-label="Enroll in {{ course.title }}">Enroll</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}

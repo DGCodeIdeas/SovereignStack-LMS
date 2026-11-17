@@ -15,5 +15,7 @@ final readonly class PublishedCourseVersion
         public string $organisationId,
         public string $title,
         public array $modules,
+        public string $visibility = 'organisation_only',
+        public ?string $description = null,
     ) {}
 }

@@ -21,6 +21,7 @@ final class PermissionCodeTest extends TestCase
             PermissionCode::COURSE_UPDATE,
             PermissionCode::COURSE_PUBLISH,
             PermissionCode::COURSE_ARCHIVE,
+            PermissionCode::COURSE_VIEW,
             PermissionCode::ENROLLMENT_CREATE,
             PermissionCode::ENROLLMENT_CANCEL_SELF,
             PermissionCode::ENROLLMENT_CANCEL_OTHER,
@@ -42,7 +43,12 @@ final class PermissionCodeTest extends TestCase
             self::assertSame($code, PermissionCode::fromString($code)->value());
         }
 
-        self::assertCount(19, array_unique($codes));
+        self::assertCount(20, array_unique($codes));
+    }
+
+    public function testCourseViewPermissionCodeConstant(): void
+    {
+        self::assertSame('course.view', PermissionCode::COURSE_VIEW);
     }
 
     public function testAcceptsDottedCodes(): void

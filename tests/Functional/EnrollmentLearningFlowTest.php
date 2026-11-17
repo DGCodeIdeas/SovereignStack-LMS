@@ -26,6 +26,8 @@ use SovereignStack\Lms\Identity\Domain\Repository\UserRepositoryInterface;
 use SovereignStack\Lms\Identity\Domain\ValueObject\Email;
 use SovereignStack\Lms\Identity\Domain\ValueObject\RoleIdentifier;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
+use SovereignStack\Lms\Learning\Domain\Exception\ProgressConflictException;
+use SovereignStack\Lms\Learning\Domain\Repository\LessonProgressRepositoryInterface;
 use SovereignStack\Lms\Organisation\Domain\Entity\Membership;
 use SovereignStack\Lms\Organisation\Domain\Entity\Organisation;
 use SovereignStack\Lms\Organisation\Domain\Repository\MembershipRepositoryInterface;
@@ -35,6 +37,7 @@ use SovereignStack\Lms\Shared\Domain\Clock\ClockInterface;
 use SovereignStack\Lms\Shared\Domain\Uuid\UuidGeneratorInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdReference;
 use SovereignStack\Lms\Shared\Domain\ValueObject\UserIdReference;
+use SovereignStack\Lms\Shared\Infrastructure\Persistence\DatabaseValue;
 use SovereignStack\Lms\Tests\Functional\Fixtures\DeterministicTokenGenerator;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Component\DomCrawler\Crawler;
@@ -225,6 +228,148 @@ final class EnrollmentLearningFlowTest extends DatabaseWebTestCase
             ),
         );
         self::assertSame('completed', $this->enrollmentRow($enrollmentId)['status']);
+    }
+
+    public function testMultiLessonRequiredModuleRequiresEveryLessonForCompletion(): void
+    {
+        $context = $this->seedPublishedCourse('integrity-multilesson', true, 2, false);
+        $client = $this->client();
+        $this->login($client, 'integrity-multilesson-learner@example.com');
+
+        $enrollmentId = $this->enroll($client, $context['courseId']);
+        self::assertCount(2, $context['requiredLessonIds']);
+
+        $this->recordProgress($client, $enrollmentId, $context['requiredLessonIds'][0], 'completed');
+
+        self::assertSame(
+            'in_progress',
+            $this->moduleProgressStatus($enrollmentId, $this->requiredModuleId($context)),
+        );
+        self::assertSame(1, $this->countRows('lesson_progress'));
+        self::assertSame(0, $this->countRows('course_completions'));
+
+        $token = $this->csrfToken($client, 'complete_enrollment');
+        $client->request('POST', '/enrollments/'.$enrollmentId.'/complete', ['_csrf_token' => $token]);
+        self::assertTrue($client->getResponse()->isRedirect());
+        self::assertSame('active', $this->enrollmentRow($enrollmentId)['status']);
+        self::assertSame(0, $this->countRows('course_completions'));
+
+        $this->recordProgress($client, $enrollmentId, $context['requiredLessonIds'][1], 'completed');
+
+        self::assertSame(
+            'completed',
+            $this->moduleProgressStatus($enrollmentId, $this->requiredModuleId($context)),
+        );
+        self::assertSame(2, $this->countRows('lesson_progress'));
+
+        $token = $this->csrfToken($client, 'complete_enrollment');
+        $client->request('POST', '/enrollments/'.$enrollmentId.'/complete', ['_csrf_token' => $token]);
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        self::assertSame('completed', $this->enrollmentRow($enrollmentId)['status']);
+        self::assertSame(1, $this->countRows('course_completions'));
+
+        $completionId = $this->connection()->fetchOne(
+            'SELECT id FROM course_completions WHERE enrollment_id = :enrollment_id',
+            ['enrollment_id' => $enrollmentId],
+        );
+        self::assertIsString($completionId);
+
+        $token = $this->csrfToken($client, 'complete_enrollment');
+        $client->request('POST', '/enrollments/'.$enrollmentId.'/complete', ['_csrf_token' => $token]);
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        self::assertSame(1, $this->countRows('course_completions'));
+        self::assertSame(
+            $completionId,
+            $this->connection()->fetchOne(
+                'SELECT id FROM course_completions WHERE enrollment_id = :enrollment_id',
+                ['enrollment_id' => $enrollmentId],
+            ),
+        );
+    }
+
+    public function testZeroLessonRequiredModuleCannotBeCompleted(): void
+    {
+        $context = $this->seedPublishedCourse('integrity-zero-lesson', true, 0, false);
+        self::assertNotNull($context['requiredModuleId']);
+        self::assertSame([], $context['requiredLessonIds']);
+
+        $client = $this->client();
+        $this->login($client, 'integrity-zero-lesson-learner@example.com');
+
+        $enrollmentId = $this->enroll($client, $context['courseId']);
+
+        $token = $this->csrfToken($client, 'complete_enrollment');
+        $client->request('POST', '/enrollments/'.$enrollmentId.'/complete', ['_csrf_token' => $token]);
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        self::assertSame('active', $this->enrollmentRow($enrollmentId)['status']);
+        self::assertSame(0, $this->countRows('course_completions'));
+        self::assertSame(0, $this->countRows('module_progress'));
+    }
+
+    public function testIncompleteOptionalModuleDoesNotBlockCompletion(): void
+    {
+        $context = $this->seedPublishedCourse('integrity-optional', true, 1, true);
+        self::assertNotNull($context['optionalModuleId']);
+        self::assertNotEmpty($context['optionalLessonIds']);
+
+        $client = $this->client();
+        $this->login($client, 'integrity-optional-learner@example.com');
+
+        $enrollmentId = $this->enroll($client, $context['courseId']);
+        $this->recordProgress($client, $enrollmentId, $context['requiredLessonIds'][0], 'completed');
+
+        $token = $this->csrfToken($client, 'complete_enrollment');
+        $client->request('POST', '/enrollments/'.$enrollmentId.'/complete', ['_csrf_token' => $token]);
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        self::assertSame('completed', $this->enrollmentRow($enrollmentId)['status']);
+        self::assertSame(1, $this->countRows('course_completions'));
+        self::assertSame(1, $this->countRows('module_progress'));
+        self::assertSame(
+            'completed',
+            $this->moduleProgressStatus($enrollmentId, $this->requiredModuleId($context)),
+        );
+        self::assertFalse($this->connection()->fetchOne(
+            'SELECT status FROM module_progress WHERE enrollment_id = :enrollment AND course_module_id = :module',
+            ['enrollment' => $enrollmentId, 'module' => $context['optionalModuleId']],
+        ));
+    }
+
+    public function testConcurrentLessonProgressSavesDoNotLoseUpdates(): void
+    {
+        $context = $this->seedPublishedCourse('integrity-concurrent', true, 1, false);
+        $client = $this->client();
+        $this->login($client, 'integrity-concurrent-learner@example.com');
+
+        $enrollmentId = $this->enroll($client, $context['courseId']);
+        $lessonId = $context['requiredLessonIds'][0];
+        $this->recordProgress($client, $enrollmentId, $lessonId, 'in_progress');
+
+        $repository = $this->service(LessonProgressRepositoryInterface::class);
+        $first = $repository->findByEnrollmentAndLesson($enrollmentId, $lessonId);
+        $second = $repository->findByEnrollmentAndLesson($enrollmentId, $lessonId);
+        self::assertNotNull($first);
+        self::assertNotNull($second);
+        self::assertSame($first->version(), $second->version());
+
+        $first->markCompleted(new \DateTimeImmutable('2026-11-17T06:00:00+00:00'));
+        $repository->save($first);
+
+        $second->markCompleted(new \DateTimeImmutable('2026-11-17T06:01:00+00:00'));
+
+        try {
+            $repository->save($second);
+            self::fail('A stale concurrent save must raise a conflict instead of overwriting.');
+        } catch (ProgressConflictException) {
+        }
+
+        $row = $this->lessonProgressRow($enrollmentId, $lessonId);
+        self::assertSame('completed', $row['status']);
+        self::assertSame(2, DatabaseValue::int($row, 'version'));
+        self::assertSame(1, $this->countRows('lesson_progress'));
     }
 
     public function testEmptyRequiredModuleCourseCannotBeCompleted(): void

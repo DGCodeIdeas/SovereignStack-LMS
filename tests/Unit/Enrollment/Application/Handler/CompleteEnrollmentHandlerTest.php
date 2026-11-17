@@ -21,6 +21,9 @@ use SovereignStack\Lms\Tests\Unit\Enrollment\Application\ApplicationTestCase;
  */
 final class CompleteEnrollmentHandlerTest extends ApplicationTestCase
 {
+    private const OPTIONAL_MODULE_ID = '01900000-0000-7000-8000-000000000015';
+    private const OPTIONAL_LESSON_ID = '01900000-0000-7000-8000-000000000016';
+
     public function testLearnerCanCompleteWhenRequiredModulesAreDone(): void
     {
         $this->publishedCourse();
@@ -88,6 +91,40 @@ final class CompleteEnrollmentHandlerTest extends ApplicationTestCase
         $this->expectException(IncompleteModulesException::class);
 
         ($this->completeHandler())(new CompleteEnrollmentCommand(self::LEARNER_ID, $enrollment->id()->value()));
+    }
+
+    public function testRequiredModuleWithoutLessonsRemainsIncomplete(): void
+    {
+        $this->publishCourse([
+            $this->module(self::MODULE_ID, 'Empty required module', true, []),
+        ]);
+        $enrollment = $this->activeEnrollment();
+
+        $this->expectException(IncompleteModulesException::class);
+
+        ($this->completeHandler())(new CompleteEnrollmentCommand(self::LEARNER_ID, $enrollment->id()->value()));
+    }
+
+    public function testIncompleteOptionalModuleDoesNotBlockCompletion(): void
+    {
+        $this->publishCourse([
+            $this->module(self::MODULE_ID, 'Required', true, [$this->lesson(self::LESSON_ID)]),
+            $this->module(self::OPTIONAL_MODULE_ID, 'Optional', false, [$this->lesson(self::OPTIONAL_LESSON_ID)]),
+        ]);
+        $enrollment = $this->activeEnrollment();
+        $this->seedModuleProgress($enrollment->id()->value(), self::MODULE_ID, ProgressStatus::COMPLETED);
+
+        $completionId = ($this->completeHandler())(new CompleteEnrollmentCommand(
+            self::LEARNER_ID,
+            $enrollment->id()->value(),
+        ));
+
+        self::assertSame($completionId->value(), $this->completions->findByEnrollment($enrollment->id()->value())?->id()->value());
+        self::assertSame(EnrollmentStatus::COMPLETED, $this->enrollments->findById($enrollment->id())?->status());
+        self::assertNull($this->moduleProgress->findByEnrollmentAndModule(
+            $enrollment->id()->value(),
+            self::OPTIONAL_MODULE_ID,
+        ));
     }
 
     public function testUnrelatedActorIsDenied(): void
