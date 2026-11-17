@@ -21,3 +21,9 @@ course_controllers:
         path: ../src/Course/Presentation/Controller/
         namespace: SovereignStack\Lms\Course\Presentation\Controller
     type: attribute
+
+enrollment_controllers:
+    resource:
+        path: ../src/Enrollment/Presentation/Controller/
+        namespace: SovereignStack\Lms\Enrollment\Presentation\Controller
+    type: attribute
