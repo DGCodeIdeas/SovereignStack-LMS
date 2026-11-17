@@ -13,3 +13,21 @@ services:
     SovereignStack\Lms\Shared\Application\Token\TokenGeneratorInterface:
         alias: SovereignStack\Lms\Tests\Functional\Fixtures\DeterministicTokenGenerator
         public: true
+
+    SovereignStack\Lms\Enrollment\Application\Handler\EnrollHandler:
+        public: true
+
+    SovereignStack\Lms\Enrollment\Application\Handler\CancelEnrollmentHandler:
+        public: true
+
+    SovereignStack\Lms\Enrollment\Application\Handler\RecordLessonProgressHandler:
+        public: true
+
+    SovereignStack\Lms\Enrollment\Application\Handler\CompleteEnrollmentHandler:
+        public: true
+
+    SovereignStack\Lms\Enrollment\Application\Handler\GetEnrollmentHandler:
+        public: true
+
+    SovereignStack\Lms\Enrollment\Application\Handler\ListEnrollmentsHandler:
+        public: true
