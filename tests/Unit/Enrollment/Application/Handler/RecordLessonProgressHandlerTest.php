@@ -27,6 +27,8 @@ use SovereignStack\Lms\Tests\Unit\Enrollment\Application\Fakes\FlakyLessonProgre
  */
 final class RecordLessonProgressHandlerTest extends ApplicationTestCase
 {
+    private const SECOND_LESSON_ID = '01900000-0000-7000-8000-000000000014';
+
     public function testLearnerCanStartAndCompleteLesson(): void
     {
         $this->publishedCourse();
@@ -55,6 +57,36 @@ final class RecordLessonProgressHandlerTest extends ApplicationTestCase
         self::assertNotNull($module);
         self::assertSame(ProgressStatus::COMPLETED, $module->status());
         self::assertSame(2, $this->auditCount('learning.lesson_progressed'));
+    }
+
+    public function testMultiLessonModuleRequiresEveryLessonBeforeCompletion(): void
+    {
+        $this->publishCourse([
+            $this->module(self::MODULE_ID, 'Module', true, [
+                $this->lesson(self::LESSON_ID),
+                $this->lesson(self::SECOND_LESSON_ID),
+            ]),
+        ]);
+        $enrollment = $this->activeEnrollment();
+        $this->lessonProgress->lessonModules[self::LESSON_ID] = self::MODULE_ID;
+        $this->lessonProgress->lessonModules[self::SECOND_LESSON_ID] = self::MODULE_ID;
+        $handler = $this->recordProgressHandler();
+
+        $handler(new RecordLessonProgressCommand(self::LEARNER_ID, $enrollment->id()->value(), self::LESSON_ID, 'completed'));
+
+        $module = $this->moduleProgress->findByEnrollmentAndModule($enrollment->id()->value(), self::MODULE_ID);
+        self::assertNotNull($module);
+        self::assertSame(ProgressStatus::IN_PROGRESS, $module->status());
+        self::assertNull(
+            $this->lessonProgress->findByEnrollmentAndLesson($enrollment->id()->value(), self::SECOND_LESSON_ID),
+        );
+
+        $handler(new RecordLessonProgressCommand(self::LEARNER_ID, $enrollment->id()->value(), self::SECOND_LESSON_ID, 'completed'));
+
+        $module = $this->moduleProgress->findByEnrollmentAndModule($enrollment->id()->value(), self::MODULE_ID);
+        self::assertNotNull($module);
+        self::assertSame(ProgressStatus::COMPLETED, $module->status());
+        self::assertSame(2, \count($this->lessonProgress->listByEnrollment($enrollment->id()->value())));
     }
 
     public function testRepeatedSameStatusIsANoOp(): void

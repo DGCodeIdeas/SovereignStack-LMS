@@ -74,9 +74,12 @@ Domain rules:
   `ProgressConflictException`.
 - Repeating the current status is idempotent: the recorder returns without
   writing, so timestamps, versions and row counts do not change.
-- Module progress is derived from lesson progress. A module becomes
-  `completed` when every recorded lesson in it is completed and `in_progress`
-  when at least one lesson has started.
+- Module progress is derived from the published lesson set of the module, not
+  from recorded rows alone. A module becomes `completed` only when that set is
+  non-empty and every lesson has a recorded `completed` progress row. Any
+  recorded `in_progress` or `completed` lesson keeps the module `in_progress`
+  until all lessons are completed. A module with zero lessons never becomes
+  `completed`; it has no module progress row.
 - `lesson_progress` and `module_progress` carry a `version` column for
   optimistic locking. Updates use `WHERE id = ? AND version = ?`; a stale write
   raises `ProgressConflictException::versionMismatch`.

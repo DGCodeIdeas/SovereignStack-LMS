@@ -23,6 +23,7 @@ final class FlakyLessonProgressRecorder implements LessonProgressRecorderInterfa
         string $target,
         string $organisationId,
         string $moduleId,
+        array $moduleLessonIds,
         \DateTimeImmutable $now,
     ): void {
         ++$this->attempts;
@@ -38,6 +39,7 @@ final class FlakyLessonProgressRecorder implements LessonProgressRecorderInterfa
             $target,
             $organisationId,
             $moduleId,
+            $moduleLessonIds,
             $now,
         );
     }
