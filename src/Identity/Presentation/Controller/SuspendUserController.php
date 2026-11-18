@@ -25,6 +25,10 @@ final class SuspendUserController extends AbstractController
             return new Response('Forbidden', Response::HTTP_FORBIDDEN);
         }
 
+        if (!$this->isGranted('ROLE_PLATFORM_ADMIN')) {
+            return new Response('Forbidden', Response::HTTP_FORBIDDEN);
+        }
+
         if (!$this->isCsrfTokenValid('suspend_user', $request->request->getString('_csrf_token'))) {
             return new Response('Invalid CSRF token.', Response::HTTP_BAD_REQUEST);
         }
@@ -34,25 +38,20 @@ final class SuspendUserController extends AbstractController
         }
 
         try {
-            $handler(new SuspendUserCommand($securityUser->getDomainUser()->id()->value(), $id));
+            $changed = $handler(new SuspendUserCommand($securityUser->getDomainUser()->id()->value(), $id));
         } catch (ForbiddenException) {
             return new Response('Forbidden', Response::HTTP_FORBIDDEN);
         } catch (ConflictException $exception) {
             $this->addFlash('error', $exception->getMessage());
 
-            if ($this->isGranted('ROLE_PLATFORM_ADMIN')) {
-                return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
-            }
-
-            return $this->redirectToRoute('app_account');
-        }
-
-        $this->addFlash('success', 'The user account has been suspended.');
-
-        if ($this->isGranted('ROLE_PLATFORM_ADMIN')) {
             return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
         }
 
-        return $this->redirectToRoute('app_account');
+        $this->addFlash(
+            $changed ? 'success' : 'info',
+            $changed ? 'The user account has been suspended.' : 'The user account was already suspended.',
+        );
+
+        return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
     }
 }
