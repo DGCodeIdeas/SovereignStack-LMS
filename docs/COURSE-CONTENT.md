@@ -133,6 +133,13 @@ messages followed by a redirect. Invalid CSRF tokens return `400`. Templates are
 server-rendered, use accessible labels, and contain no inline JavaScript.
 Reorder controls post the complete ordered id list from simple up/down buttons.
 
+### Instructor assignment windows
+
+`CourseInstructor::isEffectiveAt()` treats `effective_from` as inclusive and
+`effective_until` as **exclusive**: an assignment ending at 12:00 is no longer
+effective at exactly 12:00. Assignment creation rejects an end time that is not
+after the start time. Unit tests cover the exact upper-boundary case.
+
 ### HugeRTE follow-up
 
 Lesson authoring currently uses a plain `<textarea>` for sanitised HTML. HugeRTE

@@ -153,7 +153,7 @@ final readonly class DBALRoleRepository implements RoleRepositoryInterface
                 'roleCode' => DatabaseValue::string($row, 'role_code'),
                 'roleName' => DatabaseValue::string($row, 'role_name'),
                 'organisationId' => DatabaseValue::nullableString($row, 'organisation_id'),
-                'assignedAt' => DateTimeCodec::fromDatabase(DatabaseValue::string($row, 'assigned_at'))->format(\DATE_ATOM),
+                'assignedAt' => DateTimeCodec::fromDatabase(DatabaseValue::string($row, 'assigned_at'))->format('Y-m-d\TH:i:s.uP'),
             ],
             $rows,
         );
