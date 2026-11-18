@@ -90,23 +90,23 @@ final readonly class DBALUserRepository implements UserRepositoryInterface
         );
     }
 
-    public function search(string $query, int $limit, int $offset): array
-    {
+    public function search(
+        string $query,
+        int $limit,
+        int $offset,
+        ?string $status = null,
+        ?string $roleCode = null,
+    ): array {
         $term = trim($query);
         $limit = max(1, min(self::MAX_SEARCH_LIMIT, $limit));
         $offset = max(0, $offset);
 
+        [$where, $params] = $this->searchPredicate($term, $status, $roleCode);
         $sql = 'SELECT u.id, u.email, u.status, p.display_name, u.created_at, u.last_login_at'
             .' FROM users u'
-            .' LEFT JOIN user_profiles p ON p.user_id = u.id';
-        $params = [];
-
-        if ('' !== $term) {
-            $sql .= ' WHERE (u.email LIKE :like OR p.display_name LIKE :like)';
-            $params['like'] = '%'.$term.'%';
-        }
-
-        $sql .= ' ORDER BY u.created_at DESC, u.id DESC LIMIT :limit OFFSET :offset';
+            .' LEFT JOIN user_profiles p ON p.user_id = u.id'
+            .([] === $where ? '' : ' WHERE '.implode(' AND ', $where))
+            .' ORDER BY u.created_at DESC, u.id DESC LIMIT :limit OFFSET :offset';
         $params['limit'] = $limit;
         $params['offset'] = $offset;
 
@@ -130,21 +130,45 @@ final readonly class DBALUserRepository implements UserRepositoryInterface
         );
     }
 
-    public function countSearch(string $query): int
-    {
-        $term = trim($query);
-
-        $sql = 'SELECT COUNT(*) FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id';
-        $params = [];
-
-        if ('' !== $term) {
-            $sql .= ' WHERE (u.email LIKE :like OR p.display_name LIKE :like)';
-            $params['like'] = '%'.$term.'%';
-        }
+    public function countSearch(
+        string $query,
+        ?string $status = null,
+        ?string $roleCode = null,
+    ): int {
+        [$where, $params] = $this->searchPredicate(trim($query), $status, $roleCode);
+        $sql = 'SELECT COUNT(DISTINCT u.id) FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id'
+            .([] === $where ? '' : ' WHERE '.implode(' AND ', $where));
 
         $count = $this->connection->fetchOne($sql, $params);
 
         return \is_numeric($count) ? (int) $count : 0;
+    }
+
+    /**
+     * @return array{0: list<string>, 1: array<string, mixed>}
+     */
+    private function searchPredicate(string $term, ?string $status, ?string $roleCode): array
+    {
+        $where = [];
+        $params = [];
+
+        if ('' !== $term) {
+            $where[] = '(u.email LIKE :like OR p.display_name LIKE :like)';
+            $params['like'] = '%'.$term.'%';
+        }
+
+        if (null !== $status && '' !== $status) {
+            $where[] = 'u.status = :status';
+            $params['status'] = $status;
+        }
+
+        if (null !== $roleCode && '' !== $roleCode) {
+            $where[] = 'EXISTS (SELECT 1 FROM user_roles ur INNER JOIN roles r ON r.id = ur.role_id'
+                .' WHERE ur.user_id = u.id AND r.code = :role_code)';
+            $params['role_code'] = $roleCode;
+        }
+
+        return [$where, $params];
     }
 
     private function exists(UserId $id): bool

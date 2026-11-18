@@ -320,6 +320,127 @@ final class AdminOperationsTest extends DatabaseWebTestCase
         self::assertSame(UserStatus::DEACTIVATED, $this->userStatus($learnerId));
     }
 
+    public function testReactivatingSuspendedUserRestoresLoginAndAudits(): void
+    {
+        $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
+        $learnerId = $this->createVerifiedUser('reactivate-suspended@example.com', RoleIdentifier::LMS_LEARNER);
+
+        $adminClient = $this->client();
+        $this->login($adminClient, 'admin@example.com');
+        $crawler = $adminClient->request('GET', '/admin/users/'.$learnerId);
+        self::assertSame(200, $adminClient->getResponse()->getStatusCode());
+
+        $adminClient->request('POST', '/admin/users/'.$learnerId.'/suspend', [
+            '_csrf_token' => $this->csrfFromForm($crawler, '/admin/users/'.$learnerId.'/suspend'),
+        ]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        self::assertSame(UserStatus::SUSPENDED, $this->userStatus($learnerId));
+
+        $crawler = $adminClient->request('GET', '/admin/users/'.$learnerId);
+        self::assertSame(200, $adminClient->getResponse()->getStatusCode());
+
+        $adminClient->request('POST', '/admin/users/'.$learnerId.'/reactivate', [
+            '_csrf_token' => $this->csrfFromForm($crawler, '/admin/users/'.$learnerId.'/reactivate'),
+        ]);
+
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        self::assertStringContainsString(
+            '/admin/users/'.$learnerId,
+            (string) $adminClient->getResponse()->headers->get('Location'),
+        );
+        self::assertSame(UserStatus::ACTIVE, $this->userStatus($learnerId));
+        self::assertTrue($this->hasAuditEvent('user.reactivated', $learnerId));
+
+        $learnerClient = $this->client();
+        $this->login($learnerClient, 'reactivate-suspended@example.com');
+        $learnerClient->request('GET', '/account');
+        self::assertSame(200, $learnerClient->getResponse()->getStatusCode());
+    }
+
+    public function testReactivatingDeactivatedUserRestoresLoginAndAudits(): void
+    {
+        $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
+        $learnerId = $this->createVerifiedUser('reactivate-deactivated@example.com', RoleIdentifier::LMS_LEARNER);
+
+        $adminClient = $this->client();
+        $this->login($adminClient, 'admin@example.com');
+        $crawler = $adminClient->request('GET', '/admin/users/'.$learnerId);
+        self::assertSame(200, $adminClient->getResponse()->getStatusCode());
+
+        $adminClient->request('POST', '/admin/users/'.$learnerId.'/deactivate', [
+            '_csrf_token' => $this->csrfFromForm($crawler, '/admin/users/'.$learnerId.'/deactivate'),
+        ]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        self::assertSame(UserStatus::DEACTIVATED, $this->userStatus($learnerId));
+
+        $crawler = $adminClient->request('GET', '/admin/users/'.$learnerId);
+        self::assertSame(200, $adminClient->getResponse()->getStatusCode());
+
+        $adminClient->request('POST', '/admin/users/'.$learnerId.'/reactivate', [
+            '_csrf_token' => $this->csrfFromForm($crawler, '/admin/users/'.$learnerId.'/reactivate'),
+        ]);
+
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        self::assertSame(UserStatus::ACTIVE, $this->userStatus($learnerId));
+        self::assertTrue($this->hasAuditEvent('user.reactivated', $learnerId));
+
+        $learnerClient = $this->client();
+        $this->login($learnerClient, 'reactivate-deactivated@example.com');
+        $learnerClient->request('GET', '/account');
+        self::assertSame(200, $learnerClient->getResponse()->getStatusCode());
+    }
+
+    public function testAdminUserListFiltersByStatusAndRole(): void
+    {
+        $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
+        $suspendedId = $this->createVerifiedUser('suspended-filter@example.com', RoleIdentifier::LMS_LEARNER);
+        $this->createVerifiedUser('instructor-filter@example.com', RoleIdentifier::LMS_INSTRUCTOR);
+        $this->suspendDirectly($suspendedId);
+
+        $client = $this->client();
+        $this->login($client, 'admin@example.com');
+
+        $client->request('GET', '/admin/users?status=suspended');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $content = $this->content($client);
+        self::assertStringContainsString('suspended-filter@example.com', $content);
+        self::assertStringNotContainsString('instructor-filter@example.com', $content);
+        self::assertStringNotContainsString('admin@example.com', $content);
+
+        $client->request('GET', '/admin/users?role='.RoleIdentifier::LMS_INSTRUCTOR);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $content = $this->content($client);
+        self::assertStringContainsString('instructor-filter@example.com', $content);
+        self::assertStringNotContainsString('suspended-filter@example.com', $content);
+        self::assertStringNotContainsString('admin@example.com', $content);
+    }
+
+    public function testAdminUserListPaginatesBeyondFirstPage(): void
+    {
+        $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
+        $emails = [];
+        for ($index = 1; $index <= 51; ++$index) {
+            $emails[] = sprintf('bulk-%02d@example.com', $index);
+        }
+        $this->createVerifiedUsers($emails, RoleIdentifier::LMS_LEARNER);
+
+        $client = $this->client();
+        $this->login($client, 'admin@example.com');
+
+        $client->request('GET', '/admin/users');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $content = $this->content($client);
+        self::assertStringContainsString('href="/admin/users?', $content);
+        self::assertStringContainsString('page=2', $content);
+        self::assertStringNotContainsString('page=0', $content);
+
+        $client->request('GET', '/admin/users?page=2');
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+        $content = $this->content($client);
+        self::assertStringContainsString('page=1', $content);
+        self::assertStringContainsString('bulk-', $content);
+    }
+
     public function testPlatformAdminCannotSuspendOrDeactivateTheirOwnAccount(): void
     {
         $adminId = $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
@@ -480,6 +601,66 @@ final class AdminOperationsTest extends DatabaseWebTestCase
         }
 
         return $userId->value();
+    }
+
+    /**
+     * @param list<string> $emails
+     */
+    private function createVerifiedUsers(array $emails, ?string $roleCode = null): void
+    {
+        $container = self::getContainer();
+
+        $users = $container->get(UserRepositoryInterface::class);
+        self::assertInstanceOf(UserRepositoryInterface::class, $users);
+
+        $uuid = $container->get(UuidGeneratorInterface::class);
+        self::assertInstanceOf(UuidGeneratorInterface::class, $uuid);
+
+        $clock = $container->get(ClockInterface::class);
+        self::assertInstanceOf(ClockInterface::class, $clock);
+
+        $hasher = $container->get(PasswordHasherInterface::class);
+        self::assertInstanceOf(PasswordHasherInterface::class, $hasher);
+
+        $now = $clock->now();
+        $passwordHash = $hasher->hash(self::PASSWORD);
+
+        foreach ($emails as $email) {
+            $userId = UserId::fromString($uuid->generate());
+            $user = User::register($userId, Email::fromString($email), $passwordHash, $now);
+            $user->verifyEmail($now);
+            $users->save($user);
+
+            if (null !== $roleCode) {
+                $this->assignRole($userId, $roleCode);
+            }
+        }
+    }
+
+    private function suspendDirectly(string $userId): void
+    {
+        $container = self::getContainer();
+
+        $users = $container->get(UserRepositoryInterface::class);
+        self::assertInstanceOf(UserRepositoryInterface::class, $users);
+
+        $clock = $container->get(ClockInterface::class);
+        self::assertInstanceOf(ClockInterface::class, $clock);
+
+        $user = $users->findById(UserId::fromString($userId));
+        self::assertNotNull($user);
+        $user->suspend($clock->now());
+        $users->save($user);
+    }
+
+    private function hasAuditEvent(string $eventType, string $resourceId): bool
+    {
+        $count = $this->connection()->fetchOne(
+            'SELECT COUNT(*) FROM audit_events WHERE event_type = :event_type AND resource_id = :resource_id',
+            ['event_type' => $eventType, 'resource_id' => $resourceId],
+        );
+
+        return \is_numeric($count) && (int) $count > 0;
     }
 
     private function assignRole(UserId $userId, string $roleCode): void

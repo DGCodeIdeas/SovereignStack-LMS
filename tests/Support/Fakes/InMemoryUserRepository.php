@@ -57,9 +57,14 @@ final class InMemoryUserRepository implements UserRepositoryInterface
         $this->displayNames[$userId->value()] = $displayName;
     }
 
-    public function search(string $query, int $limit, int $offset): array
-    {
-        $matches = $this->matching($query);
+    public function search(
+        string $query,
+        int $limit,
+        int $offset,
+        ?string $status = null,
+        ?string $roleCode = null,
+    ): array {
+        $matches = $this->matching($query, $status);
         $limit = max(1, min(100, $limit));
         $offset = max(0, $offset);
 
@@ -79,20 +84,24 @@ final class InMemoryUserRepository implements UserRepositoryInterface
         return $rows;
     }
 
-    public function countSearch(string $query): int
+    public function countSearch(string $query, ?string $status = null, ?string $roleCode = null): int
     {
-        return \count($this->matching($query));
+        return \count($this->matching($query, $status));
     }
 
     /**
      * @return list<User>
      */
-    private function matching(string $query): array
+    private function matching(string $query, ?string $status = null): array
     {
         $term = mb_strtolower(trim($query));
         $matches = [];
 
         foreach ($this->users as $user) {
+            if (null !== $status && '' !== $status && $user->status()->value !== $status) {
+                continue;
+            }
+
             $displayName = mb_strtolower($this->displayNames[$user->id()->value()] ?? '');
 
             if ('' !== $term

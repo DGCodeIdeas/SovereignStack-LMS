@@ -133,6 +133,20 @@ final class User
         $this->updatedAt = $now;
     }
 
+    public function reactivate(\DateTimeImmutable $now): void
+    {
+        if (UserStatus::ACTIVE === $this->status) {
+            return;
+        }
+
+        if (!\in_array($this->status, [UserStatus::SUSPENDED, UserStatus::DEACTIVATED], true)) {
+            throw InvalidAccountStateException::forTransition($this->status->value, UserStatus::ACTIVE->value);
+        }
+
+        $this->status = UserStatus::ACTIVE;
+        $this->updatedAt = $now;
+    }
+
     public function changePassword(string $passwordHash, \DateTimeImmutable $now): void
     {
         $this->passwordHash = $passwordHash;
