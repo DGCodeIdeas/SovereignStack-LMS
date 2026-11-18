@@ -41,6 +41,12 @@ final readonly class AssignRoleHandler
             ? null
             : OrganisationIdReference::fromString($command->organisationId);
 
+        if (RoleIdentifier::PLATFORM_ADMIN === $role->value() && null !== $organisation) {
+            throw ValidationException::withErrors([
+                'role' => ['The platform administrator role must be assigned globally.'],
+            ]);
+        }
+
         $this->roles->assign(
             $targetId,
             $role,

@@ -11,6 +11,24 @@
                 <label for="q">Search by email or display name</label>
                 <input id="q" name="q" type="search" value="{{ query }}" maxlength="255">
             </div>
+            <div class="form-field">
+                <label for="status">Status</label>
+                <select id="status" name="status">
+                    <option value="">Any status</option>
+                    {% for state in ['active', 'pending_verification', 'suspended', 'deactivated'] %}
+                        <option value="{{ state }}" {{ status == state ? 'selected' : '' }}>{{ state }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="role">Role</label>
+                <select id="role" name="role">
+                    <option value="">Any role</option>
+                    {% for roleOption in roles %}
+                        <option value="{{ roleOption.code }}" {{ role == roleOption.code ? 'selected' : '' }}>{{ roleOption.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <button type="submit" class="button">Search</button>
         </form>
 
@@ -45,5 +63,15 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <nav aria-label="User list pages" class="form-links">
+            {% if page > 1 %}
+                <a href="{{ path('app_admin_users', {q: query, status: status, role: role, page: page - 1}) }}">Previous</a>
+            {% endif %}
+            <span>Page {{ page }}</span>
+            {% if page * pageSize < total %}
+                <a href="{{ path('app_admin_users', {q: query, status: status, role: role, page: page + 1}) }}">Next</a>
+            {% endif %}
+        </nav>
     </section>
 {% endblock %}

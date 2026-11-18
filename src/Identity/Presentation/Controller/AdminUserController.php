@@ -6,11 +6,14 @@ namespace SovereignStack\Lms\Identity\Presentation\Controller;
 
 use SovereignStack\Lms\Identity\Application\Command\AssignRoleCommand;
 use SovereignStack\Lms\Identity\Application\Command\DeactivateUserCommand;
+use SovereignStack\Lms\Identity\Application\Command\ReactivateUserCommand;
 use SovereignStack\Lms\Identity\Application\Command\RevokeRoleCommand;
 use SovereignStack\Lms\Identity\Application\Contract\UserOrganisationsInterface;
 use SovereignStack\Lms\Identity\Application\Handler\AssignRoleHandler;
 use SovereignStack\Lms\Identity\Application\Handler\DeactivateUserHandler;
+use SovereignStack\Lms\Identity\Application\Handler\ReactivateUserHandler;
 use SovereignStack\Lms\Identity\Application\Handler\RevokeRoleHandler;
+use SovereignStack\Lms\Identity\Domain\Exception\InvalidAccountStateException;
 use SovereignStack\Lms\Identity\Domain\Exception\UserNotFoundException;
 use SovereignStack\Lms\Identity\Domain\Repository\RoleRepositoryInterface;
 use SovereignStack\Lms\Identity\Domain\Repository\UserProfileRepositoryInterface;
@@ -39,6 +42,7 @@ final class AdminUserController extends AbstractController
         private readonly AssignRoleHandler $assignRole,
         private readonly RevokeRoleHandler $revokeRole,
         private readonly DeactivateUserHandler $deactivate,
+        private readonly ReactivateUserHandler $reactivate,
         private readonly UserOrganisationsInterface $organisations,
     ) {}
 
@@ -48,14 +52,30 @@ final class AdminUserController extends AbstractController
         $this->denyUnlessPlatformAdmin();
 
         $query = trim($request->query->getString('q'));
+        $status = trim($request->query->getString('status'));
+        $role = trim($request->query->getString('role'));
         $page = max(1, $request->query->getInt('page', 1));
         $offset = ($page - 1) * self::PAGE_SIZE;
 
         return $this->render('admin/users/index.html.twig', [
-            'users' => $this->users->search($query, self::PAGE_SIZE, $offset),
-            'total' => $this->users->countSearch($query),
+            'users' => $this->users->search(
+                $query,
+                self::PAGE_SIZE,
+                $offset,
+                '' === $status ? null : $status,
+                '' === $role ? null : $role,
+            ),
+            'total' => $this->users->countSearch(
+                $query,
+                '' === $status ? null : $status,
+                '' === $role ? null : $role,
+            ),
             'query' => $query,
+            'status' => $status,
+            'role' => $role,
+            'roles' => $this->roles->listAll(),
             'page' => $page,
+            'pageSize' => self::PAGE_SIZE,
         ]);
     }
 
@@ -190,6 +210,10 @@ final class AdminUserController extends AbstractController
 
         try {
             ($this->deactivate)(new DeactivateUserCommand($this->actorId(), $id));
+        } catch (ConflictException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
         } catch (ForbiddenException) {
             throw new AccessDeniedHttpException('You are not allowed to deactivate users.');
         } catch (UserNotFoundException $exception) {
@@ -197,6 +221,32 @@ final class AdminUserController extends AbstractController
         }
 
         $this->addFlash('success', 'The user account has been deactivated.');
+
+        return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
+    }
+
+    #[Route('/{id}/reactivate', name: 'app_admin_user_reactivate', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    public function reactivate(Request $request, string $id): Response
+    {
+        $this->denyUnlessPlatformAdmin();
+
+        if (!$this->isCsrfTokenValid('reactivate_user', $request->request->getString('_csrf_token'))) {
+            return new Response('Invalid CSRF token.', Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            ($this->reactivate)(new ReactivateUserCommand($this->actorId(), $id));
+        } catch (ForbiddenException) {
+            throw new AccessDeniedHttpException('You are not allowed to reactivate users.');
+        } catch (UserNotFoundException $exception) {
+            throw new NotFoundHttpException($exception->getMessage(), $exception);
+        } catch (InvalidAccountStateException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
+        }
+
+        $this->addFlash('success', 'The user account has been reactivated.');
 
         return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
     }

@@ -136,7 +136,7 @@ final class RoleRepositoryTest extends DatabaseIntegrationTestCase
         self::assertSame('lms:instructor', $assignments[0]['roleCode']);
         self::assertSame('Instructor', $assignments[0]['roleName']);
         self::assertSame($organisation->value(), $assignments[0]['organisationId']);
-        self::assertSame($this->now->format(\DATE_ATOM), $assignments[0]['assignedAt']);
+        self::assertSame($this->now->format('Y-m-d\TH:i:s.uP'), $assignments[0]['assignedAt']);
         self::assertSame('lms:learner', $assignments[1]['roleCode']);
         self::assertNull($assignments[1]['organisationId']);
     }
@@ -188,6 +188,25 @@ final class RoleRepositoryTest extends DatabaseIntegrationTestCase
         self::assertSame(2, $repository->countUsersWithRole($role));
         self::assertSame(1, $repository->countUsersWithRole($role, $organisation));
         self::assertSame(0, $repository->countUsersWithRole(RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN)));
+    }
+
+    public function testCountActiveUsersWithRoleExcludesInactiveAccounts(): void
+    {
+        $repository = $this->repository();
+        $first = $this->userId();
+        $second = $this->userId();
+        $role = RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN);
+
+        $repository->assign($first, $role, null, null, $this->now);
+        $repository->assign($second, $role, null, null, $this->now);
+
+        $this->connection()->executeStatement(
+            "UPDATE users SET status = 'suspended' WHERE id = :id",
+            ['id' => $second->value()],
+        );
+
+        self::assertSame(2, $repository->countUsersWithRole($role));
+        self::assertSame(1, $repository->countActiveUsersWithRole($role));
     }
 
     private function repository(): DBALRoleRepository

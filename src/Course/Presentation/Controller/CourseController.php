@@ -20,6 +20,7 @@ use SovereignStack\Lms\Course\Application\Command\SaveLessonContentCommand;
 use SovereignStack\Lms\Course\Application\Command\SubmitForReviewCommand;
 use SovereignStack\Lms\Course\Application\Command\UpdateCourseCommand;
 use SovereignStack\Lms\Course\Application\Contract\UserOrganisationsInterface;
+use SovereignStack\Lms\Course\Application\Contract\UserSearchInterface;
 use SovereignStack\Lms\Course\Application\Handler\AddLessonHandler;
 use SovereignStack\Lms\Course\Application\Handler\AddModuleHandler;
 use SovereignStack\Lms\Course\Application\Handler\ArchiveCourseHandler;
@@ -78,6 +79,7 @@ final class CourseController extends AbstractController
         private readonly CreateDraftVersionHandler $createDraftVersion,
         private readonly AssignInstructorHandler $assignInstructor,
         private readonly CourseInstructorRepositoryInterface $instructors,
+        private readonly UserSearchInterface $userSearch,
     ) {}
 
     #[Route('/courses', name: 'app_courses', methods: ['GET'])]
@@ -165,6 +167,9 @@ final class CourseController extends AbstractController
             'moduleMoveIds' => $moduleMoveIds,
             'lessonMoveIds' => $lessonMoveIds,
             'instructors' => $this->instructors->listByCourse(CourseId::fromString($courseId)),
+            'instructorCandidates' => $this->isGranted('ROLE_PLATFORM_ADMIN')
+                ? $this->userSearch->search('', 50)
+                : [],
         ]);
     }
 

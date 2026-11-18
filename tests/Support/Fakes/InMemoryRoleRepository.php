@@ -54,6 +54,11 @@ final class InMemoryRoleRepository implements RoleRepositoryInterface
         return 'role-'.$role->value();
     }
 
+    public function lockRole(RoleIdentifier $role): ?string
+    {
+        return $this->findIdByCode($role);
+    }
+
     public function rolesForUser(UserId $userId, ?OrganisationIdInterface $organisationId = null): array
     {
         return $this->roles[$userId->value()] ?? [];
@@ -157,6 +162,13 @@ final class InMemoryRoleRepository implements RoleRepositoryInterface
 
         unset($this->assignmentTimes[$this->key($userId->value(), $role->value(), $orgValue)]);
         $this->rebuildRoles();
+    }
+
+    public function countActiveUsersWithRole(
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId = null,
+    ): int {
+        return $this->countUsersWithRole($role, $organisationId);
     }
 
     public function countUsersWithRole(

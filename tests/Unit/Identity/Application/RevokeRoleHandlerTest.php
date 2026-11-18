@@ -17,6 +17,7 @@ use SovereignStack\Lms\Shared\Application\Exception\ForbiddenException;
 use SovereignStack\Lms\Shared\Application\Exception\ValidationException;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdReference;
 use SovereignStack\Lms\Tests\Support\Fakes\FakePermissionChecker;
+use SovereignStack\Lms\Tests\Support\Fakes\FakeTransactionManager;
 use SovereignStack\Lms\Tests\Support\Fakes\FixedClock;
 use SovereignStack\Lms\Tests\Support\Fakes\InMemoryRoleRepository;
 use SovereignStack\Lms\Tests\Support\Fakes\InMemoryUserRepository;
@@ -115,6 +116,27 @@ final class RevokeRoleHandlerTest extends TestCase
         ($this->handler())(new RevokeRoleCommand(self::ACTOR, self::TARGET, RoleIdentifier::PLATFORM_ADMIN, null));
     }
 
+    public function testRevokingPlatformAdminFromInactiveAccountIsAllowed(): void
+    {
+        $this->roles->assign(
+            $this->targetId,
+            RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN),
+            null,
+            null,
+            $this->clock->now(),
+        );
+
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        $user->suspend($this->clock->now());
+        $this->users->save($user);
+
+        ($this->handler())(new RevokeRoleCommand(self::ACTOR, self::TARGET, RoleIdentifier::PLATFORM_ADMIN, null));
+
+        self::assertCount(0, $this->roles->assignments);
+        self::assertTrue($this->audit->hasEvent('user.role_revoked'));
+    }
+
     public function testPlatformAdministratorRemainsWhenRevokeIsBlocked(): void
     {
         $this->roles->assign(
@@ -140,6 +162,7 @@ final class RevokeRoleHandlerTest extends TestCase
             $this->users,
             $this->roles,
             $this->audit,
+            new FakeTransactionManager(),
         );
 
         $this->expectException(ForbiddenException::class);
@@ -175,6 +198,12 @@ final class RevokeRoleHandlerTest extends TestCase
 
     private function handler(): RevokeRoleHandler
     {
-        return new RevokeRoleHandler(new FakePermissionChecker(), $this->users, $this->roles, $this->audit);
+        return new RevokeRoleHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $this->roles,
+            $this->audit,
+            new FakeTransactionManager(),
+        );
     }
 }

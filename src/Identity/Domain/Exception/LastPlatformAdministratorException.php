@@ -12,4 +12,14 @@ final class LastPlatformAdministratorException extends ConflictException
     {
         return new self('The last platform administrator role cannot be revoked.');
     }
+
+    public static function cannotSuspend(): self
+    {
+        return new self('The last active platform administrator cannot be suspended.');
+    }
+
+    public static function cannotDeactivate(): self
+    {
+        return new self('The last active platform administrator cannot be deactivated.');
+    }
 }

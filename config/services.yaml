@@ -56,6 +56,9 @@ services:
     SovereignStack\Lms\Identity\Application\Contract\UserOrganisationsInterface:
         alias: SovereignStack\Lms\Identity\Application\Contract\UserOrganisationsAdapter
 
+    SovereignStack\Lms\Identity\Application\Contract\UserSearchInterface:
+        alias: SovereignStack\Lms\Identity\Application\UserSearch
+
     SovereignStack\Lms\Course\Domain\Repository\CourseRepositoryInterface:
         alias: SovereignStack\Lms\Course\Infrastructure\Persistence\DBALCourseRepository
 
@@ -152,6 +155,9 @@ services:
 
     SovereignStack\Lms\Course\Application\Contract\UserOrganisationsInterface:
         alias: SovereignStack\Lms\Course\Application\Contract\UserOrganisationsAdapter
+
+    SovereignStack\Lms\Course\Application\Contract\UserSearchInterface:
+        alias: SovereignStack\Lms\Course\Application\Contract\UserSearchAdapter
 
     SovereignStack\Lms\Organisation\Domain\Repository\OrganisationRepositoryInterface:
         alias: SovereignStack\Lms\Organisation\Infrastructure\Persistence\DBALOrganisationRepository

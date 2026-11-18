@@ -6,6 +6,7 @@ namespace SovereignStack\Lms\Identity\Application\Handler;
 
 use SovereignStack\Lms\Identity\Application\Command\RevokeRoleCommand;
 use SovereignStack\Lms\Identity\Application\Contract\PermissionCheckerInterface;
+use SovereignStack\Lms\Identity\Domain\Enum\UserStatus;
 use SovereignStack\Lms\Identity\Domain\Exception\LastPlatformAdministratorException;
 use SovereignStack\Lms\Identity\Domain\Exception\UserNotFoundException;
 use SovereignStack\Lms\Identity\Domain\Repository\RoleRepositoryInterface;
@@ -15,6 +16,7 @@ use SovereignStack\Lms\Identity\Domain\ValueObject\RoleIdentifier;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
 use SovereignStack\Lms\Shared\Application\Audit\AuditLoggerInterface;
 use SovereignStack\Lms\Shared\Application\Exception\ValidationException;
+use SovereignStack\Lms\Shared\Application\Transaction\TransactionManagerInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdReference;
 
@@ -25,6 +27,7 @@ final readonly class RevokeRoleHandler
         private UserRepositoryInterface $users,
         private RoleRepositoryInterface $roles,
         private AuditLoggerInterface $audit,
+        private TransactionManagerInterface $transactions,
     ) {}
 
     public function __invoke(RevokeRoleCommand $command): void
@@ -32,33 +35,40 @@ final readonly class RevokeRoleHandler
         $this->permissions->require($command->actorUserId, PermissionCode::USER_ROLES_ASSIGN, $command->organisationId);
 
         $targetId = $this->userId($command->targetUserId);
-
-        if (null === $this->users->findById($targetId)) {
-            throw UserNotFoundException::forId($command->targetUserId);
-        }
-
         $role = $this->role($command->roleCode);
         $organisation = $this->organisation($command->organisationId);
 
-        if (!$this->hasAssignment($targetId, $role, $organisation)) {
-            return;
-        }
+        $this->transactions->transactional(function () use ($command, $targetId, $role, $organisation): void {
+            // The lock must be the first statement in the transaction. A plain
+            // SELECT before it would establish a REPEATABLE READ snapshot and
+            // make the later count stale.
+            $this->roles->lockRole($role);
 
-        if (RoleIdentifier::PLATFORM_ADMIN === $role->value()
-            && $this->roles->countUsersWithRole($role) <= 1) {
-            throw LastPlatformAdministratorException::cannotRevoke();
-        }
+            $target = $this->users->findById($targetId)
+                ?? throw UserNotFoundException::forId($command->targetUserId);
 
-        $this->roles->revoke($targetId, $role, $organisation);
+            if (!$this->hasAssignment($targetId, $role, $organisation)) {
+                return;
+            }
 
-        $this->audit->record(
-            'user.role_revoked',
-            $command->actorUserId,
-            $command->organisationId,
-            'user',
-            $targetId->value(),
-            ['role' => $role->value(), 'organisation_id' => $command->organisationId],
-        );
+            if (null === $organisation
+                && RoleIdentifier::PLATFORM_ADMIN === $role->value()
+                && UserStatus::ACTIVE === $target->status()
+                && $this->roles->countActiveUsersWithRole($role) <= 1) {
+                throw LastPlatformAdministratorException::cannotRevoke();
+            }
+
+            $this->roles->revoke($targetId, $role, $organisation);
+
+            $this->audit->record(
+                'user.role_revoked',
+                $command->actorUserId,
+                $command->organisationId,
+                'user',
+                $targetId->value(),
+                ['role' => $role->value(), 'organisation_id' => $command->organisationId],
+            );
+        });
     }
 
     private function userId(string $value): UserId

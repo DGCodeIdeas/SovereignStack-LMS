@@ -98,7 +98,13 @@
 
             <div class="form-field">
                 <label for="instructor-user-id">Instructor user ID</label>
-                <input id="instructor-user-id" name="instructor_user_id" type="text" maxlength="36" required>
+                <input id="instructor-user-id" name="instructor_user_id" type="text" maxlength="36"
+                       list="instructor-candidates" required>
+                <datalist id="instructor-candidates">
+                    {% for candidate in instructorCandidates %}
+                        <option value="{{ candidate.id }}">{{ candidate.email }}{% if candidate.displayName is not empty %} — {{ candidate.displayName }}{% endif %}</option>
+                    {% endfor %}
+                </datalist>
             </div>
 
             <div class="form-field">

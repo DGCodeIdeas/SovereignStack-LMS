@@ -14,6 +14,12 @@ interface RoleRepositoryInterface
     public function findIdByCode(RoleIdentifier $role): ?string;
 
     /**
+     * Locks the role row for the current transaction to serialize
+     * last-platform-admin and bootstrap checks.
+     */
+    public function lockRole(RoleIdentifier $role): ?string;
+
+    /**
      * @return list<RoleIdentifier>
      */
     public function rolesForUser(UserId $userId, ?OrganisationIdInterface $organisationId = null): array;
@@ -53,6 +59,11 @@ interface RoleRepositoryInterface
     ): void;
 
     public function countUsersWithRole(
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId = null,
+    ): int;
+
+    public function countActiveUsersWithRole(
         RoleIdentifier $role,
         ?OrganisationIdInterface $organisationId = null,
     ): int;

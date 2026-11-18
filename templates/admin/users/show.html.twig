@@ -115,6 +115,11 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('deactivate_user') }}">
                     <button type="submit" class="button danger">Deactivate user</button>
                 </form>
+            {% elseif user.status.value in ['suspended', 'deactivated'] %}
+                <form method="post" action="{{ path('app_admin_user_reactivate', {id: user.id.value}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('reactivate_user') }}">
+                    <button type="submit" class="button">Reactivate user</button>
+                </form>
             {% else %}
                 <p>This account is {{ user.status.value }}.</p>
             {% endif %}

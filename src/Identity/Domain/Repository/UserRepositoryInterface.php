@@ -30,7 +30,17 @@ interface UserRepositoryInterface
      *     lastLoginAt: null|string
      * }>
      */
-    public function search(string $query, int $limit, int $offset): array;
+    public function search(
+        string $query,
+        int $limit,
+        int $offset,
+        ?string $status = null,
+        ?string $roleCode = null,
+    ): array;
 
-    public function countSearch(string $query): int;
+    public function countSearch(
+        string $query,
+        ?string $status = null,
+        ?string $roleCode = null,
+    ): int;
 }
