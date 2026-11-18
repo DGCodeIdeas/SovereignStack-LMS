@@ -1,0 +1,125 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ user.email }} — User administration{% endblock %}
+
+{% block body %}
+    <section class="panel">
+        <h1>{{ user.email }}</h1>
+
+        <dl>
+            <div class="details-row">
+                <dt>Display name</dt>
+                <dd>{{ profile ? profile.displayName : '—' }}</dd>
+            </div>
+            <div class="details-row">
+                <dt>Status</dt>
+                <dd>{{ user.status.value }}</dd>
+            </div>
+            <div class="details-row">
+                <dt>Created</dt>
+                <dd>{{ user.createdAt ? user.createdAt|date('c') : '—' }}</dd>
+            </div>
+            <div class="details-row">
+                <dt>Last login</dt>
+                <dd>{{ user.lastLoginAt ? user.lastLoginAt|date('c') : '—' }}</dd>
+            </div>
+            <div class="details-row">
+                <dt>Email verified</dt>
+                <dd>{{ user.emailVerifiedAt ? 'Yes' : 'No' }}</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section class="panel">
+        <h2>Roles</h2>
+
+        <table>
+            <caption>Role assignments</caption>
+            <thead>
+                <tr>
+                    <th scope="col">Role</th>
+                    <th scope="col">Organisation</th>
+                    <th scope="col">Assigned</th>
+                    <th scope="col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assignment in assignments %}
+                    <tr>
+                        <td>{{ assignment.roleName }} ({{ assignment.roleCode }})</td>
+                        <td>{{ assignment.organisationId ?? 'Global' }}</td>
+                        <td>{{ assignment.assignedAt }}</td>
+                        <td>
+                            <form method="post" action="{{ path('app_admin_user_role_revoke', {id: user.id.value}) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('revoke_role') }}">
+                                <input type="hidden" name="role_code" value="{{ assignment.roleCode }}">
+                                <input type="hidden" name="organisation_id" value="{{ assignment.organisationId ?? '' }}">
+                                <button type="submit" class="button">Revoke</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="4">No roles assigned.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <form method="post" action="{{ path('app_admin_user_role_assign', {id: user.id.value}) }}" class="form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('assign_role') }}">
+            <div class="form-field">
+                <label for="role_code">Assign role</label>
+                <select id="role_code" name="role_code" required>
+                    <option value="">Select a role</option>
+                    {% for role in roles %}
+                        <option value="{{ role.code }}">{{ role.name }} ({{ role.code }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-field">
+                <label for="organisation_id">Organisation (optional; blank = global)</label>
+                <select id="organisation_id" name="organisation_id">
+                    <option value="">Global</option>
+                    {% for organisation in organisations %}
+                        <option value="{{ organisation.id }}">{{ organisation.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="button">Assign role</button>
+        </form>
+    </section>
+
+    <section class="panel">
+        <h2>Organisations</h2>
+        <ul>
+            {% for organisation in organisations %}
+                <li>{{ organisation.name }} ({{ organisation.slug }})</li>
+            {% else %}
+                <li>No organisation memberships.</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    {% if not is_self %}
+        <section class="panel">
+            <h2>Account actions</h2>
+
+            {% if user.status.value == 'active' %}
+                <form method="post" action="{{ path('app_admin_suspend_user', {id: user.id.value}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('suspend_user') }}">
+                    <button type="submit" class="button danger">Suspend user</button>
+                </form>
+
+                <form method="post" action="{{ path('app_admin_user_deactivate', {id: user.id.value}) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('deactivate_user') }}">
+                    <button type="submit" class="button danger">Deactivate user</button>
+                </form>
+            {% else %}
+                <p>This account is {{ user.status.value }}.</p>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    <p><a href="{{ path('app_admin_users') }}">Back to users</a></p>
+{% endblock %}

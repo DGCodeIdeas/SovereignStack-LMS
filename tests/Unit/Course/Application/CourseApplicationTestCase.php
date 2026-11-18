@@ -69,7 +69,7 @@ abstract class CourseApplicationTestCase extends TestCase
         $this->contents = new InMemoryLessonContentRepository();
         $this->instructors = new InMemoryCourseInstructorRepository();
         $this->sanitizer = new FakeHtmlSanitizer();
-        $this->policy = new CourseAccessPolicy($this->permissions, $this->instructors);
+        $this->policy = new CourseAccessPolicy($this->permissions, $this->instructors, $this->clock);
         $this->versionResolver = new CourseVersionResolver($this->versions);
     }
 

@@ -19,4 +19,18 @@ interface UserRepositoryInterface
     public function findByEmail(Email $email): ?User;
 
     public function emailExists(Email $email): bool;
+
+    /**
+     * @return list<array{
+     *     id: string,
+     *     email: string,
+     *     status: string,
+     *     displayName: string,
+     *     createdAt: string,
+     *     lastLoginAt: null|string
+     * }>
+     */
+    public function search(string $query, int $limit, int $offset): array;
+
+    public function countSearch(string $query): int;
 }

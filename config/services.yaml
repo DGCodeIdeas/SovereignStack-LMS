@@ -53,6 +53,9 @@ services:
     SovereignStack\Lms\Identity\Domain\Repository\RoleRepositoryInterface:
         alias: SovereignStack\Lms\Identity\Infrastructure\Persistence\DBALRoleRepository
 
+    SovereignStack\Lms\Identity\Application\Contract\UserOrganisationsInterface:
+        alias: SovereignStack\Lms\Identity\Application\Contract\UserOrganisationsAdapter
+
     SovereignStack\Lms\Course\Domain\Repository\CourseRepositoryInterface:
         alias: SovereignStack\Lms\Course\Infrastructure\Persistence\DBALCourseRepository
 
