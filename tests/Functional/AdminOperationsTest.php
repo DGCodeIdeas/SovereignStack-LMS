@@ -183,9 +183,10 @@ final class AdminOperationsTest extends DatabaseWebTestCase
         self::assertInstanceOf(RoleRepositoryInterface::class, $roles);
         $found = false;
         foreach ($roles->assignmentsForUser(UserId::fromString($learnerId)) as $assignment) {
-            if ($assignment['roleCode'] === RoleIdentifier::LMS_INSTRUCTOR
+            if (RoleIdentifier::LMS_INSTRUCTOR === $assignment['roleCode']
                 && $assignment['organisationId'] === $organisationId) {
                 $found = true;
+
                 break;
             }
         }
