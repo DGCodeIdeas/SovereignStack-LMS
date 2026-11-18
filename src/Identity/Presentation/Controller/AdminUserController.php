@@ -88,11 +88,25 @@ final class AdminUserController extends AbstractController
         }
 
         try {
+            $organisationId = $request->request->getString('organisation_id');
+            $organisationId = '' === $organisationId ? null : $organisationId;
+
+            if (null !== $organisationId) {
+                $targetId = $this->userId($id);
+                $allowed = array_column($this->organisations->forUser($targetId->value()), 'id');
+
+                if (!in_array($organisationId, $allowed, true)) {
+                    $this->addFlash('error', 'The user is not a member of that organisation.');
+
+                    return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
+                }
+            }
+
             ($this->assignRole)(new AssignRoleCommand(
                 $this->actorId(),
                 $id,
                 $request->request->getString('role_code'),
-                null,
+                $organisationId,
             ));
         } catch (ConflictException $exception) {
             $this->addFlash('error', $exception->getMessage());

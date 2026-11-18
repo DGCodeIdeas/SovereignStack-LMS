@@ -67,7 +67,7 @@
         <form method="post" action="{{ path('app_admin_user_role_assign', {id: user.id.value}) }}" class="form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token('assign_role') }}">
             <div class="form-field">
-                <label for="role_code">Assign global role</label>
+                <label for="role_code">Assign role</label>
                 <select id="role_code" name="role_code" required>
                     <option value="">Select a role</option>
                     {% for role in roles %}
@@ -75,6 +75,17 @@
                     {% endfor %}
                 </select>
             </div>
+
+            <div class="form-field">
+                <label for="organisation_id">Organisation (optional; blank = global)</label>
+                <select id="organisation_id" name="organisation_id">
+                    <option value="">Global</option>
+                    {% for organisation in organisations %}
+                        <option value="{{ organisation.id }}">{{ organisation.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <button type="submit" class="button">Assign role</button>
         </form>
     </section>

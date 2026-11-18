@@ -157,6 +157,41 @@ final class AdminOperationsTest extends DatabaseWebTestCase
         self::assertTrue($this->userHasRole($adminId, RoleIdentifier::PLATFORM_ADMIN));
     }
 
+    public function testRoleCanBeAssignedWithOrganisationScope(): void
+    {
+        $adminId = $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
+        $learnerId = $this->createVerifiedUser('learner@example.com', RoleIdentifier::LMS_LEARNER);
+        $organisationId = $this->createOrganisationDirect('Acme', 'acme');
+        $this->addMembershipDirect($organisationId, $adminId);
+        $this->addMembershipDirect($organisationId, $learnerId);
+
+        $client = $this->client();
+        $this->login($client, 'admin@example.com');
+
+        $crawler = $client->request('GET', '/admin/users/'.$learnerId);
+        self::assertSame(200, $client->getResponse()->getStatusCode());
+
+        $client->request('POST', '/admin/users/'.$learnerId.'/roles', [
+            'role_code' => RoleIdentifier::LMS_INSTRUCTOR,
+            'organisation_id' => $organisationId,
+            '_csrf_token' => $this->csrfFromForm($crawler, '/admin/users/'.$learnerId.'/roles'),
+        ]);
+
+        self::assertTrue($client->getResponse()->isRedirect());
+
+        $roles = self::getContainer()->get(RoleRepositoryInterface::class);
+        self::assertInstanceOf(RoleRepositoryInterface::class, $roles);
+        $found = false;
+        foreach ($roles->assignmentsForUser(UserId::fromString($learnerId)) as $assignment) {
+            if ($assignment['roleCode'] === RoleIdentifier::LMS_INSTRUCTOR
+                && $assignment['organisationId'] === $organisationId) {
+                $found = true;
+                break;
+            }
+        }
+        self::assertTrue($found);
+    }
+
     public function testCsrfTokenIsRequiredForAdminAndInstructorMutations(): void
     {
         $adminId = $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
