@@ -62,4 +62,9 @@ interface RoleRepositoryInterface
         RoleIdentifier $role,
         ?OrganisationIdInterface $organisationId = null,
     ): int;
+
+    public function countActiveUsersWithRole(
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId = null,
+    ): int;
 }

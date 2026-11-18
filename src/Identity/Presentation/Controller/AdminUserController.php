@@ -13,6 +13,7 @@ use SovereignStack\Lms\Identity\Application\Handler\AssignRoleHandler;
 use SovereignStack\Lms\Identity\Application\Handler\DeactivateUserHandler;
 use SovereignStack\Lms\Identity\Application\Handler\ReactivateUserHandler;
 use SovereignStack\Lms\Identity\Application\Handler\RevokeRoleHandler;
+use SovereignStack\Lms\Identity\Domain\Exception\InvalidAccountStateException;
 use SovereignStack\Lms\Identity\Domain\Exception\UserNotFoundException;
 use SovereignStack\Lms\Identity\Domain\Repository\RoleRepositoryInterface;
 use SovereignStack\Lms\Identity\Domain\Repository\UserProfileRepositoryInterface;
@@ -74,6 +75,7 @@ final class AdminUserController extends AbstractController
             'role' => $role,
             'roles' => $this->roles->listAll(),
             'page' => $page,
+            'pageSize' => self::PAGE_SIZE,
         ]);
     }
 
@@ -234,6 +236,10 @@ final class AdminUserController extends AbstractController
             throw new AccessDeniedHttpException('You are not allowed to reactivate users.');
         } catch (UserNotFoundException $exception) {
             throw new NotFoundHttpException($exception->getMessage(), $exception);
+        } catch (InvalidAccountStateException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
         }
 
         $this->addFlash('success', 'The user account has been reactivated.');

@@ -134,6 +134,12 @@ idempotent.
 - Bootstrap audit rows are written inside the same transaction as the user,
   profile and role assignment, so a rolled-back bootstrap cannot leave a
   successful audit record.
+- `platform:admin` is global-only; assigning it with an organisation scope is
+  rejected.
+- The last-platform-administrator guard counts only **active** users with the
+  global role, so suspended/deactivated administrators do not satisfy it.
+- Reactivation clears failed-login and lockout state; reactivating an
+  already-active account is a no-op and writes no duplicate audit record.
 - Admin UI templates never render password hashes or authentication tokens.
 
 ## RBAC and organisation isolation

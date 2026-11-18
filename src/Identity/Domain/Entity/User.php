@@ -144,6 +144,8 @@ final class User
         }
 
         $this->status = UserStatus::ACTIVE;
+        $this->failedLoginCount = 0;
+        $this->lockedUntil = null;
         $this->updatedAt = $now;
     }
 

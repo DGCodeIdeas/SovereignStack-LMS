@@ -186,6 +186,28 @@ final readonly class DBALRoleRepository implements RoleRepositoryInterface
         $this->connection->executeStatement($sql, $params);
     }
 
+    public function countActiveUsersWithRole(
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId = null,
+    ): int {
+        $sql = 'SELECT COUNT(DISTINCT ur.user_id) FROM user_roles ur'
+            .' INNER JOIN roles r ON r.id = ur.role_id'
+            .' INNER JOIN users u ON u.id = ur.user_id'
+            .' WHERE r.code = :code AND u.status = :active';
+        $params = ['code' => $role->value(), 'active' => 'active'];
+
+        if (null === $organisationId) {
+            $sql .= ' AND ur.organisation_id IS NULL';
+        } else {
+            $sql .= ' AND ur.organisation_id = :organisation_id';
+            $params['organisation_id'] = $organisationId->value();
+        }
+
+        $count = $this->connection->fetchOne($sql, $params);
+
+        return \is_numeric($count) ? (int) $count : 0;
+    }
+
     public function countUsersWithRole(
         RoleIdentifier $role,
         ?OrganisationIdInterface $organisationId = null,

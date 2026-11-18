@@ -26,7 +26,7 @@ final class ReactivateUserHandlerTest extends TestCase
     private const ACTOR = '01900000-0000-7000-8000-000000000901';
     private const TARGET = '01900000-0000-7000-8000-000000000902';
 
-    public function testReactivatesSuspendedUserAndAudits(): void
+    public function testReactivatesSuspendedUserAndClearsLockout(): void
     {
         $clock = new FixedClock(new \DateTimeImmutable('2026-11-18T00:00:00+00:00'));
         $users = new InMemoryUserRepository();
@@ -34,11 +34,12 @@ final class ReactivateUserHandlerTest extends TestCase
         $userId = UserId::fromString(self::TARGET);
         $user = User::register($userId, Email::fromString('reactivate@example.com'), 'hash', $clock->now());
         $user->verifyEmail($clock->now());
+        $user->recordFailedLogin($clock->now(), 1, 15);
         $user->suspend($clock->now());
         $users->save($user);
 
         $handler = new ReactivateUserHandler(
-            new FakePermissionChecker(),
+            new FakePermissionChecker([]),
             $users,
             $audit,
             $clock,
@@ -49,6 +50,29 @@ final class ReactivateUserHandlerTest extends TestCase
         $reloaded = $users->findById($userId);
         self::assertNotNull($reloaded);
         self::assertSame(UserStatus::ACTIVE, $reloaded->status());
+        self::assertTrue($reloaded->canAuthenticate($clock->now()));
         self::assertTrue($audit->hasEvent('user.reactivated'));
+    }
+
+    public function testReactivatingActiveUserIsNoOpWithoutAudit(): void
+    {
+        $clock = new FixedClock(new \DateTimeImmutable('2026-11-18T00:00:00+00:00'));
+        $users = new InMemoryUserRepository();
+        $audit = new RecordingAuditLogger();
+        $userId = UserId::fromString(self::TARGET);
+        $user = User::register($userId, Email::fromString('active@example.com'), 'hash', $clock->now());
+        $user->verifyEmail($clock->now());
+        $users->save($user);
+
+        $handler = new ReactivateUserHandler(
+            new FakePermissionChecker([]),
+            $users,
+            $audit,
+            $clock,
+        );
+
+        $handler(new ReactivateUserCommand(self::ACTOR, self::TARGET));
+
+        self::assertFalse($audit->hasEvent('user.reactivated'));
     }
 }

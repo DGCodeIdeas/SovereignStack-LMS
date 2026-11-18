@@ -190,6 +190,25 @@ final class RoleRepositoryTest extends DatabaseIntegrationTestCase
         self::assertSame(0, $repository->countUsersWithRole(RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN)));
     }
 
+    public function testCountActiveUsersWithRoleExcludesInactiveAccounts(): void
+    {
+        $repository = $this->repository();
+        $first = $this->userId();
+        $second = $this->userId();
+        $role = RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN);
+
+        $repository->assign($first, $role, null, null, $this->now);
+        $repository->assign($second, $role, null, null, $this->now);
+
+        $this->connection()->executeStatement(
+            "UPDATE users SET status = 'suspended' WHERE id = :id",
+            ['id' => $second->value()],
+        );
+
+        self::assertSame(2, $repository->countUsersWithRole($role));
+        self::assertSame(1, $repository->countActiveUsersWithRole($role));
+    }
+
     private function repository(): DBALRoleRepository
     {
         return new DBALRoleRepository($this->connection(), new SymfonyUidUuidGenerator());

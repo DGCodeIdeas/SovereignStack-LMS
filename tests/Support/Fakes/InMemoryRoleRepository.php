@@ -164,6 +164,13 @@ final class InMemoryRoleRepository implements RoleRepositoryInterface
         $this->rebuildRoles();
     }
 
+    public function countActiveUsersWithRole(
+        RoleIdentifier $role,
+        ?OrganisationIdInterface $organisationId = null,
+    ): int {
+        return $this->countUsersWithRole($role, $organisationId);
+    }
+
     public function countUsersWithRole(
         RoleIdentifier $role,
         ?OrganisationIdInterface $organisationId = null,

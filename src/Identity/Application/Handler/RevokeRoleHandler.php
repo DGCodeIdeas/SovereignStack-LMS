@@ -38,6 +38,11 @@ final readonly class RevokeRoleHandler
         $organisation = $this->organisation($command->organisationId);
 
         $this->transactions->transactional(function () use ($command, $targetId, $role, $organisation): void {
+            // The lock must be the first statement in the transaction. A plain
+            // SELECT before it would establish a REPEATABLE READ snapshot and
+            // make the later count stale.
+            $this->roles->lockRole($role);
+
             if (null === $this->users->findById($targetId)) {
                 throw UserNotFoundException::forId($command->targetUserId);
             }
@@ -46,14 +51,10 @@ final readonly class RevokeRoleHandler
                 return;
             }
 
-            if (RoleIdentifier::PLATFORM_ADMIN === $role->value()) {
-                // Serialize competing revocations on the role row before
-                // counting, so two requests cannot remove the final admin.
-                $this->roles->lockRole($role);
-
-                if ($this->roles->countUsersWithRole($role) <= 1) {
-                    throw LastPlatformAdministratorException::cannotRevoke();
-                }
+            if (null === $organisation
+                && RoleIdentifier::PLATFORM_ADMIN === $role->value()
+                && $this->roles->countActiveUsersWithRole($role) <= 1) {
+                throw LastPlatformAdministratorException::cannotRevoke();
             }
 
             $this->roles->revoke($targetId, $role, $organisation);

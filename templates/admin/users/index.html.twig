@@ -69,7 +69,7 @@
                 <a href="{{ path('app_admin_users', {q: query, status: status, role: role, page: page - 1}) }}">Previous</a>
             {% endif %}
             <span>Page {{ page }}</span>
-            {% if page * 50 < total %}
+            {% if page * pageSize < total %}
                 <a href="{{ path('app_admin_users', {q: query, status: status, role: role, page: page + 1}) }}">Next</a>
             {% endif %}
         </nav>
