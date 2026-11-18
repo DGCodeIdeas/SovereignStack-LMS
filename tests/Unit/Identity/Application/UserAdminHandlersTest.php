@@ -13,10 +13,13 @@ use SovereignStack\Lms\Identity\Application\Handler\DeactivateUserHandler;
 use SovereignStack\Lms\Identity\Application\Handler\SuspendUserHandler;
 use SovereignStack\Lms\Identity\Domain\Entity\User;
 use SovereignStack\Lms\Identity\Domain\Enum\UserStatus;
+use SovereignStack\Lms\Identity\Domain\Exception\LastPlatformAdministratorException;
 use SovereignStack\Lms\Identity\Domain\ValueObject\Email;
+use SovereignStack\Lms\Identity\Domain\ValueObject\RoleIdentifier;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
 use SovereignStack\Lms\Shared\Application\Exception\ForbiddenException;
 use SovereignStack\Lms\Tests\Support\Fakes\FakePermissionChecker;
+use SovereignStack\Lms\Tests\Support\Fakes\FakeTransactionManager;
 use SovereignStack\Lms\Tests\Support\Fakes\FixedClock;
 use SovereignStack\Lms\Tests\Support\Fakes\InMemoryRoleRepository;
 use SovereignStack\Lms\Tests\Support\Fakes\InMemoryUserRepository;
@@ -59,7 +62,9 @@ final class UserAdminHandlersTest extends TestCase
         $handler = new SuspendUserHandler(
             new FakePermissionChecker(['user.manage']),
             $this->users,
+            new InMemoryRoleRepository(),
             $this->audit,
+            new FakeTransactionManager(),
             $this->clock,
         );
 
@@ -73,7 +78,9 @@ final class UserAdminHandlersTest extends TestCase
         $handler = new SuspendUserHandler(
             new FakePermissionChecker(),
             $this->users,
+            new InMemoryRoleRepository(),
             $this->audit,
+            new FakeTransactionManager(),
             $this->clock,
         );
 
@@ -90,7 +97,9 @@ final class UserAdminHandlersTest extends TestCase
         $handler = new DeactivateUserHandler(
             new FakePermissionChecker(['user.manage']),
             $this->users,
+            new InMemoryRoleRepository(),
             $this->audit,
+            new FakeTransactionManager(),
             $this->clock,
         );
 
@@ -104,7 +113,9 @@ final class UserAdminHandlersTest extends TestCase
         $handler = new DeactivateUserHandler(
             new FakePermissionChecker(),
             $this->users,
+            new InMemoryRoleRepository(),
             $this->audit,
+            new FakeTransactionManager(),
             $this->clock,
         );
 
@@ -114,6 +125,182 @@ final class UserAdminHandlersTest extends TestCase
         self::assertNotNull($user);
         self::assertSame(UserStatus::DEACTIVATED, $user->status());
         self::assertTrue($this->audit->hasEvent('user.deactivated'));
+    }
+
+    public function testSuspendingLastActivePlatformAdminIsRejected(): void
+    {
+        $roles = new InMemoryRoleRepository();
+        $roles->assign($this->targetId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+
+        $handler = new SuspendUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            new FakeTransactionManager(),
+            $this->clock,
+        );
+
+        $this->expectException(LastPlatformAdministratorException::class);
+
+        ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
+    }
+
+    public function testSuspendingNonLastPlatformAdminSucceeds(): void
+    {
+        $roles = new InMemoryRoleRepository();
+        $roles->assign($this->targetId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+        $otherId = UserId::fromString('01900000-0000-7000-8000-000000000902');
+        $other = User::register($otherId, Email::fromString('other@example.com'), 'hash', $this->clock->now());
+        $other->verifyEmail($this->clock->now());
+        $this->users->save($other);
+        $roles->assign($otherId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+
+        $transactions = new FakeTransactionManager();
+        $handler = new SuspendUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            $transactions,
+            $this->clock,
+        );
+
+        ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
+
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        self::assertSame(UserStatus::SUSPENDED, $user->status());
+        self::assertTrue($this->audit->hasEvent('user.suspended'));
+        self::assertSame(1, $transactions->calls);
+    }
+
+    public function testSuspendingLastActivePlatformAdminKeepsAccountActiveAndUnaudited(): void
+    {
+        $roles = new InMemoryRoleRepository();
+        $roles->assign($this->targetId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+
+        $transactions = new FakeTransactionManager();
+        $handler = new SuspendUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            $transactions,
+            $this->clock,
+        );
+
+        try {
+            ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
+            self::fail('Expected LastPlatformAdministratorException.');
+        } catch (LastPlatformAdministratorException) {
+        }
+
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        self::assertSame(UserStatus::ACTIVE, $user->status());
+        self::assertSame([], $this->audit->records);
+        self::assertSame(1, $transactions->calls);
+    }
+
+    public function testSuspendingInactiveAccountIsNoOp(): void
+    {
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        $user->suspend($this->clock->now());
+        $this->users->save($user);
+
+        $transactions = new FakeTransactionManager();
+        $handler = new SuspendUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            new InMemoryRoleRepository(),
+            $this->audit,
+            $transactions,
+            $this->clock,
+        );
+
+        ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
+
+        self::assertSame([], $this->audit->records);
+        self::assertSame(UserStatus::SUSPENDED, $this->users->findById($this->targetId)?->status());
+        self::assertSame(1, $transactions->calls);
+    }
+
+    public function testDeactivatingLastActivePlatformAdminIsRejected(): void
+    {
+        $roles = new InMemoryRoleRepository();
+        $roles->assign($this->targetId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+
+        $handler = new DeactivateUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            new FakeTransactionManager(),
+            $this->clock,
+        );
+
+        $this->expectException(LastPlatformAdministratorException::class);
+
+        ($handler)(new DeactivateUserCommand(self::ACTOR, self::TARGET));
+    }
+
+    public function testDeactivatingLastActivePlatformAdminKeepsAccountActiveAndUnaudited(): void
+    {
+        $roles = new InMemoryRoleRepository();
+        $roles->assign($this->targetId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+
+        $transactions = new FakeTransactionManager();
+        $handler = new DeactivateUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            $transactions,
+            $this->clock,
+        );
+
+        try {
+            ($handler)(new DeactivateUserCommand(self::ACTOR, self::TARGET));
+            self::fail('Expected LastPlatformAdministratorException.');
+        } catch (LastPlatformAdministratorException) {
+        }
+
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        self::assertSame(UserStatus::ACTIVE, $user->status());
+        self::assertSame([], $this->audit->records);
+        self::assertSame(1, $transactions->calls);
+    }
+
+    public function testDeactivatingNonLastPlatformAdminSucceeds(): void
+    {
+        $roles = new InMemoryRoleRepository();
+        $roles->assign($this->targetId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+        $otherId = UserId::fromString('01900000-0000-7000-8000-000000000902');
+        $other = User::register($otherId, Email::fromString('other@example.com'), 'hash', $this->clock->now());
+        $other->verifyEmail($this->clock->now());
+        $this->users->save($other);
+        $roles->assign($otherId, RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN), null, null, $this->clock->now());
+
+        $transactions = new FakeTransactionManager();
+        $handler = new DeactivateUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            $transactions,
+            $this->clock,
+        );
+
+        ($handler)(new DeactivateUserCommand(self::ACTOR, self::TARGET));
+
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        self::assertSame(UserStatus::DEACTIVATED, $user->status());
+        self::assertTrue($this->audit->hasEvent('user.deactivated'));
+        self::assertSame(1, $transactions->calls);
     }
 
     public function testAssignRoleRequiresPermission(): void

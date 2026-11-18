@@ -210,6 +210,10 @@ final class AdminUserController extends AbstractController
 
         try {
             ($this->deactivate)(new DeactivateUserCommand($this->actorId(), $id));
+        } catch (ConflictException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
         } catch (ForbiddenException) {
             throw new AccessDeniedHttpException('You are not allowed to deactivate users.');
         } catch (UserNotFoundException $exception) {

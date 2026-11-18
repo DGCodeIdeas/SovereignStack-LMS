@@ -6,6 +6,7 @@ namespace SovereignStack\Lms\Identity\Application\Handler;
 
 use SovereignStack\Lms\Identity\Application\Command\RevokeRoleCommand;
 use SovereignStack\Lms\Identity\Application\Contract\PermissionCheckerInterface;
+use SovereignStack\Lms\Identity\Domain\Enum\UserStatus;
 use SovereignStack\Lms\Identity\Domain\Exception\LastPlatformAdministratorException;
 use SovereignStack\Lms\Identity\Domain\Exception\UserNotFoundException;
 use SovereignStack\Lms\Identity\Domain\Repository\RoleRepositoryInterface;
@@ -43,9 +44,8 @@ final readonly class RevokeRoleHandler
             // make the later count stale.
             $this->roles->lockRole($role);
 
-            if (null === $this->users->findById($targetId)) {
-                throw UserNotFoundException::forId($command->targetUserId);
-            }
+            $target = $this->users->findById($targetId)
+                ?? throw UserNotFoundException::forId($command->targetUserId);
 
             if (!$this->hasAssignment($targetId, $role, $organisation)) {
                 return;
@@ -53,6 +53,7 @@ final readonly class RevokeRoleHandler
 
             if (null === $organisation
                 && RoleIdentifier::PLATFORM_ADMIN === $role->value()
+                && UserStatus::ACTIVE === $target->status()
                 && $this->roles->countActiveUsersWithRole($role) <= 1) {
                 throw LastPlatformAdministratorException::cannotRevoke();
             }

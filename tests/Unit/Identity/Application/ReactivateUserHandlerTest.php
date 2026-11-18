@@ -54,6 +54,36 @@ final class ReactivateUserHandlerTest extends TestCase
         self::assertTrue($audit->hasEvent('user.reactivated'));
     }
 
+    public function testReactivatingActiveLockedUserClearsLockout(): void
+    {
+        $clock = new FixedClock(new \DateTimeImmutable('2026-11-18T00:00:00+00:00'));
+        $users = new InMemoryUserRepository();
+        $audit = new RecordingAuditLogger();
+        $userId = UserId::fromString(self::TARGET);
+        $user = User::register($userId, Email::fromString('locked@example.com'), 'hash', $clock->now());
+        $user->verifyEmail($clock->now());
+        $user->recordFailedLogin($clock->now(), 1, 15);
+        $users->save($user);
+
+        self::assertFalse($user->canAuthenticate($clock->now()));
+
+        $handler = new ReactivateUserHandler(
+            new FakePermissionChecker([]),
+            $users,
+            $audit,
+            $clock,
+        );
+
+        $handler(new ReactivateUserCommand(self::ACTOR, self::TARGET));
+
+        $reloaded = $users->findById($userId);
+        self::assertNotNull($reloaded);
+        self::assertTrue($reloaded->canAuthenticate($clock->now()));
+        self::assertSame(0, $reloaded->failedLoginCount());
+        self::assertNull($reloaded->lockedUntil());
+        self::assertSame(['user.reactivated'], $audit->eventTypes());
+    }
+
     public function testReactivatingActiveUserIsNoOpWithoutAudit(): void
     {
         $clock = new FixedClock(new \DateTimeImmutable('2026-11-18T00:00:00+00:00'));
@@ -73,6 +103,7 @@ final class ReactivateUserHandlerTest extends TestCase
 
         $handler(new ReactivateUserCommand(self::ACTOR, self::TARGET));
 
-        self::assertFalse($audit->hasEvent('user.reactivated'));
+        self::assertSame([], $audit->records);
+        self::assertSame($clock->now(), $users->findById($userId)?->updatedAt());
     }
 }

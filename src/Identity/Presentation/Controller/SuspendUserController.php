@@ -7,6 +7,7 @@ namespace SovereignStack\Lms\Identity\Presentation\Controller;
 use SovereignStack\Lms\Identity\Application\Command\SuspendUserCommand;
 use SovereignStack\Lms\Identity\Application\Handler\SuspendUserHandler;
 use SovereignStack\Lms\Identity\Infrastructure\Security\SecurityUser;
+use SovereignStack\Lms\Shared\Application\Exception\ConflictException;
 use SovereignStack\Lms\Shared\Application\Exception\ForbiddenException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +37,14 @@ final class SuspendUserController extends AbstractController
             $handler(new SuspendUserCommand($securityUser->getDomainUser()->id()->value(), $id));
         } catch (ForbiddenException) {
             return new Response('Forbidden', Response::HTTP_FORBIDDEN);
+        } catch (ConflictException $exception) {
+            $this->addFlash('error', $exception->getMessage());
+
+            if ($this->isGranted('ROLE_PLATFORM_ADMIN')) {
+                return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
+            }
+
+            return $this->redirectToRoute('app_account');
         }
 
         $this->addFlash('success', 'The user account has been suspended.');

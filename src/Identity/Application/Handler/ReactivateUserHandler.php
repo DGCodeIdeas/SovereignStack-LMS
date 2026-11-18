@@ -6,7 +6,6 @@ namespace SovereignStack\Lms\Identity\Application\Handler;
 
 use SovereignStack\Lms\Identity\Application\Command\ReactivateUserCommand;
 use SovereignStack\Lms\Identity\Application\Contract\PermissionCheckerInterface;
-use SovereignStack\Lms\Identity\Domain\Enum\UserStatus;
 use SovereignStack\Lms\Identity\Domain\Exception\UserNotFoundException;
 use SovereignStack\Lms\Identity\Domain\Repository\UserRepositoryInterface;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
@@ -29,11 +28,10 @@ final readonly class ReactivateUserHandler
         $targetId = $this->userId($command->targetUserId);
         $user = $this->users->findById($targetId) ?? throw UserNotFoundException::forId($command->targetUserId);
 
-        if (UserStatus::ACTIVE === $user->status()) {
+        if (!$user->reactivate($this->clock->now())) {
             return;
         }
 
-        $user->reactivate($this->clock->now());
         $this->users->save($user);
 
         $this->audit->record('user.reactivated', $command->actorUserId, null, 'user', $targetId->value());

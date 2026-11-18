@@ -116,6 +116,27 @@ final class RevokeRoleHandlerTest extends TestCase
         ($this->handler())(new RevokeRoleCommand(self::ACTOR, self::TARGET, RoleIdentifier::PLATFORM_ADMIN, null));
     }
 
+    public function testRevokingPlatformAdminFromInactiveAccountIsAllowed(): void
+    {
+        $this->roles->assign(
+            $this->targetId,
+            RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN),
+            null,
+            null,
+            $this->clock->now(),
+        );
+
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        $user->suspend($this->clock->now());
+        $this->users->save($user);
+
+        ($this->handler())(new RevokeRoleCommand(self::ACTOR, self::TARGET, RoleIdentifier::PLATFORM_ADMIN, null));
+
+        self::assertCount(0, $this->roles->assignments);
+        self::assertTrue($this->audit->hasEvent('user.role_revoked'));
+    }
+
     public function testPlatformAdministratorRemainsWhenRevokeIsBlocked(): void
     {
         $this->roles->assign(

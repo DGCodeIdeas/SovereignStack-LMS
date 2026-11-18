@@ -138,8 +138,17 @@ idempotent.
   rejected.
 - The last-platform-administrator guard counts only **active** users with the
   global role, so suspended/deactivated administrators do not satisfy it.
-- Reactivation clears failed-login and lockout state; reactivating an
-  already-active account is a no-op and writes no duplicate audit record.
+- Suspending or deactivating an active global `platform:admin` participates in
+  the same role-row lock and refuses to remove the last active administrator.
+- Suspension and deactivation always take the `platform:admin` row lock as the
+  first statement of their transaction, so a role granted concurrently to the
+  target is observed by the last-administrator count instead of racing it.
+- Revoking a role from an **inactive** platform administrator is allowed when
+  another active administrator remains; the guard only applies to active
+  targets.
+- Reactivation clears failed-login and lockout state for suspended, deactivated
+  or active-but-locked accounts; reactivating an already-active unlocked account
+  is a no-op and writes no duplicate audit record.
 - Admin UI templates never render password hashes or authentication tokens.
 
 ## RBAC and organisation isolation
