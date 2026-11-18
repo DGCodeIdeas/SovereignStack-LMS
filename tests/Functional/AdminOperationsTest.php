@@ -390,6 +390,71 @@ final class AdminOperationsTest extends DatabaseWebTestCase
         self::assertSame(200, $learnerClient->getResponse()->getStatusCode());
     }
 
+    public function testRepeatedAdminStatusChangesReportNoOpFeedbackWithoutAudit(): void
+    {
+        $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
+        $learnerId = $this->createVerifiedUser('noop-status@example.com', RoleIdentifier::LMS_LEARNER);
+
+        $adminClient = $this->client();
+        $this->login($adminClient, 'admin@example.com');
+        $showUrl = '/admin/users/'.$learnerId;
+        $suspendUrl = $showUrl.'/suspend';
+        $deactivateUrl = $showUrl.'/deactivate';
+        $reactivateUrl = $showUrl.'/reactivate';
+
+        $crawler = $adminClient->request('GET', $showUrl);
+        self::assertSame(200, $adminClient->getResponse()->getStatusCode());
+        $suspendToken = $this->csrfFromForm($crawler, $suspendUrl);
+        $deactivateToken = $this->csrfFromForm($crawler, $deactivateUrl);
+
+        $adminClient->request('POST', $suspendUrl, ['_csrf_token' => $suspendToken]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        $adminClient->followRedirect();
+        self::assertStringContainsString('The user account has been suspended.', $this->content($adminClient));
+        self::assertSame(UserStatus::SUSPENDED, $this->userStatus($learnerId));
+
+        $adminClient->request('POST', $suspendUrl, ['_csrf_token' => $suspendToken]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        $adminClient->followRedirect();
+        self::assertStringContainsString('The user account was already suspended.', $this->content($adminClient));
+        self::assertStringNotContainsString('The user account has been suspended.', $this->content($adminClient));
+        self::assertSame(1, $this->countAuditEvents('user.suspended', $learnerId));
+
+        $crawler = $adminClient->request('GET', $showUrl);
+        self::assertSame(200, $adminClient->getResponse()->getStatusCode());
+        $reactivateToken = $this->csrfFromForm($crawler, $reactivateUrl);
+
+        $adminClient->request('POST', $reactivateUrl, ['_csrf_token' => $reactivateToken]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        $adminClient->followRedirect();
+        self::assertStringContainsString('The user account has been reactivated.', $this->content($adminClient));
+        self::assertSame(UserStatus::ACTIVE, $this->userStatus($learnerId));
+
+        $adminClient->request('POST', $reactivateUrl, ['_csrf_token' => $reactivateToken]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        $adminClient->followRedirect();
+        self::assertStringContainsString('The user account is already active.', $this->content($adminClient));
+        self::assertStringNotContainsString('The user account has been reactivated.', $this->content($adminClient));
+        self::assertSame(1, $this->countAuditEvents('user.reactivated', $learnerId));
+
+        $crawler = $adminClient->request('GET', $showUrl);
+        self::assertSame(200, $adminClient->getResponse()->getStatusCode());
+        $deactivateToken = $this->csrfFromForm($crawler, $deactivateUrl);
+
+        $adminClient->request('POST', $deactivateUrl, ['_csrf_token' => $deactivateToken]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        $adminClient->followRedirect();
+        self::assertStringContainsString('The user account has been deactivated.', $this->content($adminClient));
+        self::assertSame(UserStatus::DEACTIVATED, $this->userStatus($learnerId));
+
+        $adminClient->request('POST', $deactivateUrl, ['_csrf_token' => $deactivateToken]);
+        self::assertTrue($adminClient->getResponse()->isRedirect());
+        $adminClient->followRedirect();
+        self::assertStringContainsString('The user account was already deactivated.', $this->content($adminClient));
+        self::assertStringNotContainsString('The user account has been deactivated.', $this->content($adminClient));
+        self::assertSame(1, $this->countAuditEvents('user.deactivated', $learnerId));
+    }
+
     public function testAdminUserListFiltersByStatusAndRole(): void
     {
         $this->createVerifiedUser('admin@example.com', RoleIdentifier::PLATFORM_ADMIN);
@@ -661,6 +726,16 @@ final class AdminOperationsTest extends DatabaseWebTestCase
         );
 
         return \is_numeric($count) && (int) $count > 0;
+    }
+
+    private function countAuditEvents(string $eventType, string $resourceId): int
+    {
+        $count = $this->connection()->fetchOne(
+            'SELECT COUNT(*) FROM audit_events WHERE event_type = :event_type AND resource_id = :resource_id',
+            ['event_type' => $eventType, 'resource_id' => $resourceId],
+        );
+
+        return \is_numeric($count) ? (int) $count : 0;
     }
 
     private function assignRole(UserId $userId, string $roleCode): void

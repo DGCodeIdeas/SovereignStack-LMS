@@ -12,6 +12,7 @@ use SovereignStack\Lms\Identity\Domain\Enum\UserStatus;
 use SovereignStack\Lms\Identity\Domain\ValueObject\Email;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
 use SovereignStack\Lms\Tests\Support\Fakes\FakePermissionChecker;
+use SovereignStack\Lms\Tests\Support\Fakes\FakeTransactionManager;
 use SovereignStack\Lms\Tests\Support\Fakes\FixedClock;
 use SovereignStack\Lms\Tests\Support\Fakes\InMemoryUserRepository;
 use SovereignStack\Lms\Tests\Support\Fakes\RecordingAuditLogger;
@@ -43,6 +44,7 @@ final class ReactivateUserHandlerTest extends TestCase
             $users,
             $audit,
             $clock,
+            new FakeTransactionManager(),
         );
 
         $handler(new ReactivateUserCommand(self::ACTOR, self::TARGET));
@@ -72,6 +74,7 @@ final class ReactivateUserHandlerTest extends TestCase
             $users,
             $audit,
             $clock,
+            new FakeTransactionManager(),
         );
 
         $handler(new ReactivateUserCommand(self::ACTOR, self::TARGET));
@@ -99,10 +102,12 @@ final class ReactivateUserHandlerTest extends TestCase
             $users,
             $audit,
             $clock,
+            new FakeTransactionManager(),
         );
 
-        $handler(new ReactivateUserCommand(self::ACTOR, self::TARGET));
+        $changed = $handler(new ReactivateUserCommand(self::ACTOR, self::TARGET));
 
+        self::assertFalse($changed);
         self::assertSame([], $audit->records);
         self::assertSame($clock->now(), $users->findById($userId)?->updatedAt());
     }
