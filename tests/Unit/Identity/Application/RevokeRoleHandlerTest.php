@@ -17,6 +17,7 @@ use SovereignStack\Lms\Shared\Application\Exception\ForbiddenException;
 use SovereignStack\Lms\Shared\Application\Exception\ValidationException;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdReference;
 use SovereignStack\Lms\Tests\Support\Fakes\FakePermissionChecker;
+use SovereignStack\Lms\Tests\Support\Fakes\FakeTransactionManager;
 use SovereignStack\Lms\Tests\Support\Fakes\FixedClock;
 use SovereignStack\Lms\Tests\Support\Fakes\InMemoryRoleRepository;
 use SovereignStack\Lms\Tests\Support\Fakes\InMemoryUserRepository;
@@ -140,6 +141,7 @@ final class RevokeRoleHandlerTest extends TestCase
             $this->users,
             $this->roles,
             $this->audit,
+            new FakeTransactionManager(),
         );
 
         $this->expectException(ForbiddenException::class);
@@ -175,6 +177,12 @@ final class RevokeRoleHandlerTest extends TestCase
 
     private function handler(): RevokeRoleHandler
     {
-        return new RevokeRoleHandler(new FakePermissionChecker(), $this->users, $this->roles, $this->audit);
+        return new RevokeRoleHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $this->roles,
+            $this->audit,
+            new FakeTransactionManager(),
+        );
     }
 }

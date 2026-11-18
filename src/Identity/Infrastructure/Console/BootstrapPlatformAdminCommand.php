@@ -107,6 +107,11 @@ final class BootstrapPlatformAdminCommand extends Command
         try {
             $userId = $this->transactions->transactional(
                 function () use ($email, $displayName, $password): UserId {
+                    $platformAdminRole = RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN);
+                    // Serialize bootstrap attempts on the role row so two
+                    // first-boot commands cannot both create an administrator.
+                    $this->roles->lockRole($platformAdminRole);
+
                     if ($this->platformAdminExists()) {
                         throw new ConflictException('Bootstrap aborted: a platform administrator already exists.');
                     }

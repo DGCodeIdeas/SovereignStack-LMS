@@ -124,6 +124,18 @@ idempotent.
   to HTTP 403 and missing organisations to HTTP 404. Validation and conflict
   errors become flash messages; internal exception details are not rendered.
 
+## Administrative audit context
+
+- Global-role administrative audit events carry `organisation_id = NULL`; this
+  is intentional and distinct from organisation-scoped events.
+- Platform-admin bootstrap and last-platform-admin revocation serialize on the
+  `roles` row with `SELECT ... FOR UPDATE` before counting, so concurrent
+  bootstrap/revocation attempts cannot create or remove the final administrator.
+- Bootstrap audit rows are written inside the same transaction as the user,
+  profile and role assignment, so a rolled-back bootstrap cannot leave a
+  successful audit record.
+- Admin UI templates never render password hashes or authentication tokens.
+
 ## RBAC and organisation isolation
 
 - Roles can be global (`organisation_id IS NULL`) or organisation-scoped.

@@ -32,6 +32,16 @@ final readonly class DBALRoleRepository implements RoleRepositoryInterface
         return \is_string($id) ? $id : null;
     }
 
+    public function lockRole(RoleIdentifier $role): ?string
+    {
+        $id = $this->connection->fetchOne(
+            'SELECT id FROM roles WHERE code = :code FOR UPDATE',
+            ['code' => $role->value()],
+        );
+
+        return \is_string($id) ? $id : null;
+    }
+
     public function rolesForUser(UserId $userId, ?OrganisationIdInterface $organisationId = null): array
     {
         $sql = 'SELECT DISTINCT r.code FROM user_roles ur INNER JOIN roles r ON r.id = ur.role_id WHERE ur.user_id = :user_id';

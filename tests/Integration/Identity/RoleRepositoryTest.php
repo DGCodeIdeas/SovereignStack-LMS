@@ -136,7 +136,7 @@ final class RoleRepositoryTest extends DatabaseIntegrationTestCase
         self::assertSame('lms:instructor', $assignments[0]['roleCode']);
         self::assertSame('Instructor', $assignments[0]['roleName']);
         self::assertSame($organisation->value(), $assignments[0]['organisationId']);
-        self::assertSame($this->now->format(\DATE_ATOM), $assignments[0]['assignedAt']);
+        self::assertSame($this->now->format('Y-m-d\TH:i:s.uP'), $assignments[0]['assignedAt']);
         self::assertSame('lms:learner', $assignments[1]['roleCode']);
         self::assertNull($assignments[1]['organisationId']);
     }

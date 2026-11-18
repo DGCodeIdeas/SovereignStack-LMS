@@ -15,6 +15,7 @@ use SovereignStack\Lms\Identity\Domain\ValueObject\RoleIdentifier;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
 use SovereignStack\Lms\Shared\Application\Audit\AuditLoggerInterface;
 use SovereignStack\Lms\Shared\Application\Exception\ValidationException;
+use SovereignStack\Lms\Shared\Application\Transaction\TransactionManagerInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdReference;
 
@@ -25,6 +26,7 @@ final readonly class RevokeRoleHandler
         private UserRepositoryInterface $users,
         private RoleRepositoryInterface $roles,
         private AuditLoggerInterface $audit,
+        private TransactionManagerInterface $transactions,
     ) {}
 
     public function __invoke(RevokeRoleCommand $command): void
@@ -32,33 +34,39 @@ final readonly class RevokeRoleHandler
         $this->permissions->require($command->actorUserId, PermissionCode::USER_ROLES_ASSIGN, $command->organisationId);
 
         $targetId = $this->userId($command->targetUserId);
-
-        if (null === $this->users->findById($targetId)) {
-            throw UserNotFoundException::forId($command->targetUserId);
-        }
-
         $role = $this->role($command->roleCode);
         $organisation = $this->organisation($command->organisationId);
 
-        if (!$this->hasAssignment($targetId, $role, $organisation)) {
-            return;
-        }
+        $this->transactions->transactional(function () use ($command, $targetId, $role, $organisation): void {
+            if (null === $this->users->findById($targetId)) {
+                throw UserNotFoundException::forId($command->targetUserId);
+            }
 
-        if (RoleIdentifier::PLATFORM_ADMIN === $role->value()
-            && $this->roles->countUsersWithRole($role) <= 1) {
-            throw LastPlatformAdministratorException::cannotRevoke();
-        }
+            if (!$this->hasAssignment($targetId, $role, $organisation)) {
+                return;
+            }
 
-        $this->roles->revoke($targetId, $role, $organisation);
+            if (RoleIdentifier::PLATFORM_ADMIN === $role->value()) {
+                // Serialize competing revocations on the role row before
+                // counting, so two requests cannot remove the final admin.
+                $this->roles->lockRole($role);
 
-        $this->audit->record(
-            'user.role_revoked',
-            $command->actorUserId,
-            $command->organisationId,
-            'user',
-            $targetId->value(),
-            ['role' => $role->value(), 'organisation_id' => $command->organisationId],
-        );
+                if ($this->roles->countUsersWithRole($role) <= 1) {
+                    throw LastPlatformAdministratorException::cannotRevoke();
+                }
+            }
+
+            $this->roles->revoke($targetId, $role, $organisation);
+
+            $this->audit->record(
+                'user.role_revoked',
+                $command->actorUserId,
+                $command->organisationId,
+                'user',
+                $targetId->value(),
+                ['role' => $role->value(), 'organisation_id' => $command->organisationId],
+            );
+        });
     }
 
     private function userId(string $value): UserId

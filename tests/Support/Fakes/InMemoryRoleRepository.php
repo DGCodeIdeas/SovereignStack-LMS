@@ -54,6 +54,11 @@ final class InMemoryRoleRepository implements RoleRepositoryInterface
         return 'role-'.$role->value();
     }
 
+    public function lockRole(RoleIdentifier $role): ?string
+    {
+        return $this->findIdByCode($role);
+    }
+
     public function rolesForUser(UserId $userId, ?OrganisationIdInterface $organisationId = null): array
     {
         return $this->roles[$userId->value()] ?? [];
