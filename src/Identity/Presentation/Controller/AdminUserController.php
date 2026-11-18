@@ -209,7 +209,7 @@ final class AdminUserController extends AbstractController
         }
 
         try {
-            ($this->deactivate)(new DeactivateUserCommand($this->actorId(), $id));
+            $changed = ($this->deactivate)(new DeactivateUserCommand($this->actorId(), $id));
         } catch (ConflictException $exception) {
             $this->addFlash('error', $exception->getMessage());
 
@@ -220,7 +220,10 @@ final class AdminUserController extends AbstractController
             throw new NotFoundHttpException($exception->getMessage(), $exception);
         }
 
-        $this->addFlash('success', 'The user account has been deactivated.');
+        $this->addFlash(
+            $changed ? 'success' : 'info',
+            $changed ? 'The user account has been deactivated.' : 'The user account was already deactivated.',
+        );
 
         return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
     }
@@ -235,7 +238,7 @@ final class AdminUserController extends AbstractController
         }
 
         try {
-            ($this->reactivate)(new ReactivateUserCommand($this->actorId(), $id));
+            $changed = ($this->reactivate)(new ReactivateUserCommand($this->actorId(), $id));
         } catch (ForbiddenException) {
             throw new AccessDeniedHttpException('You are not allowed to reactivate users.');
         } catch (UserNotFoundException $exception) {
@@ -246,7 +249,10 @@ final class AdminUserController extends AbstractController
             return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
         }
 
-        $this->addFlash('success', 'The user account has been reactivated.');
+        $this->addFlash(
+            $changed ? 'success' : 'info',
+            $changed ? 'The user account has been reactivated.' : 'The user account is already active.',
+        );
 
         return $this->redirectToRoute('app_admin_user_show', ['id' => $id]);
     }
