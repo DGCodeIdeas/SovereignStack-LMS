@@ -29,25 +29,20 @@ final readonly class DeactivateUserHandler
         private ClockInterface $clock,
     ) {}
 
-    public function __invoke(DeactivateUserCommand $command): void
+    public function __invoke(DeactivateUserCommand $command): bool
     {
         $this->permissions->require($command->actorUserId, 'user.manage');
 
         $targetId = $this->userId($command->targetUserId);
 
-        // The platform:admin role row lock must be the first statement of the
-        // transaction. A plain SELECT before it would establish the REPEATABLE
-        // READ snapshot and make the later active-administrator count stale.
-        // Locking unconditionally also closes the race where the target gains
-        // the role after the pre-check but before the count.
-        $this->transactions->transactional(function () use ($command, $targetId): void {
+        return $this->transactions->transactional(function () use ($command, $targetId): bool {
             $this->roles->lockRole(RoleIdentifier::fromString(RoleIdentifier::PLATFORM_ADMIN));
 
             $user = $this->users->findById($targetId)
                 ?? throw UserNotFoundException::forId($command->targetUserId);
 
             if (UserStatus::ACTIVE !== $user->status()) {
-                return;
+                return false;
             }
 
             if ($this->isGlobalPlatformAdmin($user)
@@ -58,6 +53,8 @@ final readonly class DeactivateUserHandler
             $user->deactivate($this->clock->now());
             $this->users->save($user);
             $this->audit->record('user.deactivated', $command->actorUserId, null, 'user', $targetId->value());
+
+            return true;
         });
     }
 

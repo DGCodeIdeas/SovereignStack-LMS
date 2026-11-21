@@ -141,14 +141,19 @@ idempotent.
 - Suspending or deactivating an active global `platform:admin` participates in
   the same role-row lock and refuses to remove the last active administrator.
 - Suspension and deactivation always take the `platform:admin` row lock as the
-  first statement of their transaction, so a role granted concurrently to the
-  target is observed by the last-administrator count instead of racing it.
+  first statement of their transaction. Administrative role assignment,
+  revocation, suspension, deactivation and bootstrap all use the same lock-first
+  order before touching `users` or `user_roles`, preventing the FK-lock inversion
+  that could otherwise deadlock role grant against status changes.
 - Revoking a role from an **inactive** platform administrator is allowed when
   another active administrator remains; the guard only applies to active
   targets.
 - Reactivation clears failed-login and lockout state for suspended, deactivated
   or active-but-locked accounts; reactivating an already-active unlocked account
   is a no-op and writes no duplicate audit record.
+- Suspending or deactivating an account that is already in the target status is
+  likewise a no-op with no audit record; the admin UI reports it with an
+  informational flash instead of the success message.
 - Admin UI templates never render password hashes or authentication tokens.
 
 ## RBAC and organisation isolation

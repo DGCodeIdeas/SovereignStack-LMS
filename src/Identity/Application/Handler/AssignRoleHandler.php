@@ -13,6 +13,7 @@ use SovereignStack\Lms\Identity\Domain\ValueObject\RoleIdentifier;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
 use SovereignStack\Lms\Shared\Application\Audit\AuditLoggerInterface;
 use SovereignStack\Lms\Shared\Application\Exception\ValidationException;
+use SovereignStack\Lms\Shared\Application\Transaction\TransactionManagerInterface;
 use SovereignStack\Lms\Shared\Domain\Clock\ClockInterface;
 use SovereignStack\Lms\Shared\Domain\ValueObject\OrganisationIdReference;
 
@@ -24,6 +25,7 @@ final readonly class AssignRoleHandler
         private RoleRepositoryInterface $roles,
         private AuditLoggerInterface $audit,
         private ClockInterface $clock,
+        private TransactionManagerInterface $transactions,
     ) {}
 
     public function __invoke(AssignRoleCommand $command): void
@@ -31,11 +33,6 @@ final readonly class AssignRoleHandler
         $this->permissions->require($command->actorUserId, 'user.roles.assign', $command->organisationId);
 
         $targetId = $this->userId($command->targetUserId);
-
-        if (null === $this->users->findById($targetId)) {
-            throw UserNotFoundException::forId($command->targetUserId);
-        }
-
         $role = $this->role($command->roleCode);
         $organisation = null === $command->organisationId
             ? null
@@ -47,22 +44,32 @@ final readonly class AssignRoleHandler
             ]);
         }
 
-        $this->roles->assign(
-            $targetId,
-            $role,
-            $organisation,
-            $this->userId($command->actorUserId),
-            $this->clock->now(),
-        );
+        $this->transactions->transactional(function () use ($command, $targetId, $role, $organisation): void {
+            // All role mutations take the role row lock first so they share one
+            // lock order with revoke, suspend, deactivate and bootstrap.
+            $this->roles->lockRole($role);
 
-        $this->audit->record(
-            'user.role_assigned',
-            $command->actorUserId,
-            $command->organisationId,
-            'user',
-            $targetId->value(),
-            ['role' => $role->value(), 'organisation_id' => $command->organisationId],
-        );
+            if (null === $this->users->findById($targetId)) {
+                throw UserNotFoundException::forId($command->targetUserId);
+            }
+
+            $this->roles->assign(
+                $targetId,
+                $role,
+                $organisation,
+                $this->userId($command->actorUserId),
+                $this->clock->now(),
+            );
+
+            $this->audit->record(
+                'user.role_assigned',
+                $command->actorUserId,
+                $command->organisationId,
+                'user',
+                $targetId->value(),
+                ['role' => $role->value(), 'organisation_id' => $command->organisationId],
+            );
+        });
     }
 
     private function userId(string $value): UserId

@@ -18,6 +18,7 @@ use SovereignStack\Lms\Identity\Domain\ValueObject\Email;
 use SovereignStack\Lms\Identity\Domain\ValueObject\RoleIdentifier;
 use SovereignStack\Lms\Identity\Domain\ValueObject\UserId;
 use SovereignStack\Lms\Shared\Application\Exception\ForbiddenException;
+use SovereignStack\Lms\Shared\Application\Exception\ValidationException;
 use SovereignStack\Lms\Tests\Support\Fakes\FakePermissionChecker;
 use SovereignStack\Lms\Tests\Support\Fakes\FakeTransactionManager;
 use SovereignStack\Lms\Tests\Support\Fakes\FixedClock;
@@ -84,8 +85,9 @@ final class UserAdminHandlersTest extends TestCase
             $this->clock,
         );
 
-        ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
+        $changed = ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
 
+        self::assertTrue($changed);
         $user = $this->users->findById($this->targetId);
         self::assertNotNull($user);
         self::assertSame(UserStatus::SUSPENDED, $user->status());
@@ -119,8 +121,9 @@ final class UserAdminHandlersTest extends TestCase
             $this->clock,
         );
 
-        ($handler)(new DeactivateUserCommand(self::ACTOR, self::TARGET));
+        $changed = ($handler)(new DeactivateUserCommand(self::ACTOR, self::TARGET));
 
+        self::assertTrue($changed);
         $user = $this->users->findById($this->targetId);
         self::assertNotNull($user);
         self::assertSame(UserStatus::DEACTIVATED, $user->status());
@@ -220,10 +223,36 @@ final class UserAdminHandlersTest extends TestCase
             $this->clock,
         );
 
-        ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
+        $changed = ($handler)(new SuspendUserCommand(self::ACTOR, self::TARGET));
 
+        self::assertFalse($changed);
         self::assertSame([], $this->audit->records);
         self::assertSame(UserStatus::SUSPENDED, $this->users->findById($this->targetId)?->status());
+        self::assertSame(1, $transactions->calls);
+    }
+
+    public function testDeactivatingInactiveAccountIsNoOp(): void
+    {
+        $user = $this->users->findById($this->targetId);
+        self::assertNotNull($user);
+        $user->deactivate($this->clock->now());
+        $this->users->save($user);
+
+        $transactions = new FakeTransactionManager();
+        $handler = new DeactivateUserHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            new InMemoryRoleRepository(),
+            $this->audit,
+            $transactions,
+            $this->clock,
+        );
+
+        $changed = ($handler)(new DeactivateUserCommand(self::ACTOR, self::TARGET));
+
+        self::assertFalse($changed);
+        self::assertSame([], $this->audit->records);
+        self::assertSame(UserStatus::DEACTIVATED, $this->users->findById($this->targetId)?->status());
         self::assertSame(1, $transactions->calls);
     }
 
@@ -303,6 +332,28 @@ final class UserAdminHandlersTest extends TestCase
         self::assertSame(1, $transactions->calls);
     }
 
+    public function testPlatformAdminRoleCannotBeAssignedToOrganisation(): void
+    {
+        $roles = new InMemoryRoleRepository();
+        $handler = new AssignRoleHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            $this->clock,
+            new FakeTransactionManager(),
+        );
+
+        $this->expectException(ValidationException::class);
+
+        ($handler)(new AssignRoleCommand(
+            self::ACTOR,
+            self::TARGET,
+            RoleIdentifier::PLATFORM_ADMIN,
+            '01900000-0000-7000-8000-000000000100',
+        ));
+    }
+
     public function testAssignRoleRequiresPermission(): void
     {
         $roles = new InMemoryRoleRepository();
@@ -312,6 +363,7 @@ final class UserAdminHandlersTest extends TestCase
             $roles,
             $this->audit,
             $this->clock,
+            new FakeTransactionManager(),
         );
 
         $this->expectException(ForbiddenException::class);
@@ -322,7 +374,14 @@ final class UserAdminHandlersTest extends TestCase
     public function testAssignRoleIsIdempotentAndAuditsOnce(): void
     {
         $roles = new InMemoryRoleRepository();
-        $handler = new AssignRoleHandler(new FakePermissionChecker(), $this->users, $roles, $this->audit, $this->clock);
+        $handler = new AssignRoleHandler(
+            new FakePermissionChecker(),
+            $this->users,
+            $roles,
+            $this->audit,
+            $this->clock,
+            new FakeTransactionManager(),
+        );
         $command = new AssignRoleCommand(self::ACTOR, self::TARGET, 'lms:learner', null);
 
         ($handler)($command);
